@@ -1,0 +1,118 @@
+Description: Template for a basic vpc, with 4 subnets, 1 bastion
+Parameters:
+  VpcCidrBlock:
+    Description: VPC CIDR range
+    Type: String
+    Default: 10.10.0.0/16
+
+  PublicSubnet01CidrBlock:
+    Description: Subnet CIDR range
+    Type: String
+    Default: 10.10.0.0/24
+
+  PublicSubnet02CidrBlock:
+    Description: Subnet CIDR range
+    Type: String
+    Default: 10.10.1.0/24
+  
+  PrivateSubnet01CidrBlock:
+    Description: Subnet CIDR range
+    Type: String
+    Default: 10.10.2.0/24
+  
+  PrivateSubnet02CidrBlock:
+    Description: Subnet CIDR range
+    Type: String
+    Default: 10.10.3.0/24
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties: 
+      CidrBlock: !Ref VpcCidrBlock
+      # EnableDnsHostnames: Boolean
+      # EnableDnsSupport: Boolean
+      # InstanceTenancy: String
+      # Ipv4IpamPoolId: String
+      # Ipv4NetmaskLength: Integer
+      # Tags: 
+      #   - Tag
+
+  PublicSubnet01:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AssignIpv6AddressOnCreation: false
+      # AvailabilityZone: String
+      # AvailabilityZoneId: String
+      CidrBlock: !Ref PublicSubnet01CidrBlock
+      # EnableDns64: Boolean
+      # Ipv6CidrBlock: String
+      # Ipv6Native: Boolean
+      # MapPublicIpOnLaunch: Boolean
+      # OutpostArn: String
+      # PrivateDnsNameOptionsOnLaunch: 
+      #   PrivateDnsNameOptionsOnLaunch
+      # Tags: 
+      #   - Tag
+      VpcId: !Ref VPC
+
+  PublicSubnet02:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AssignIpv6AddressOnCreation: false
+      # AvailabilityZone: String
+      # AvailabilityZoneId: String
+      CidrBlock: !Ref PublicSubnet02CidrBlock
+      # EnableDns64: Boolean
+      # Ipv6CidrBlock: String
+      # Ipv6Native: Boolean
+      # MapPublicIpOnLaunch: Boolean
+      # OutpostArn: String
+      # PrivateDnsNameOptionsOnLaunch: 
+      #   PrivateDnsNameOptionsOnLaunch
+      # Tags: 
+      #   - Tag
+      VpcId: !Ref VPC
+
+  PrivateSubnet01:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AssignIpv6AddressOnCreation: false
+      # AvailabilityZone: String
+      # AvailabilityZoneId: String
+      CidrBlock: !Ref PrivateSubnet01CidrBlock
+      # EnableDns64: Boolean
+      # Ipv6CidrBlock: String
+      # Ipv6Native: Boolean
+      # MapPublicIpOnLaunch: Boolean
+      # OutpostArn: String
+      # PrivateDnsNameOptionsOnLaunch: 
+      #   PrivateDnsNameOptionsOnLaunch
+      # Tags: 
+      #   - Tag
+      VpcId: !Ref VPC
+
+  PrivateSubnet02:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AssignIpv6AddressOnCreation: false
+      # AvailabilityZone: String
+      # AvailabilityZoneId: String
+      CidrBlock: !Ref PrivateSubnet01CidrBlock
+      # EnableDns64: Boolean
+      # Ipv6CidrBlock: String
+      # Ipv6Native: Boolean
+      # MapPublicIpOnLaunch: Boolean
+      # OutpostArn: String
+      # PrivateDnsNameOptionsOnLaunch: 
+      #   PrivateDnsNameOptionsOnLaunch
+      # Tags: 
+      #   - Tag
+      VpcId: !Ref VPC
+
+  PublicRouteTable01:
+  PrivateRouteTable01:
+  InternetGateway01:
+  NatGateway01:
+  Bastion:
+
