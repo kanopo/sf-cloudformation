@@ -63,7 +63,10 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties: 
       # AssignIpv6AddressOnCreation: false
-      AvailabilityZone: eu-north-1a
+      AvailabilityZone: 
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: !Ref AWS::Region
       # AvailabilityZoneId: String
       CidrBlock: !Ref pPublicSubnet01CidrBlock
       # EnableDns64: Boolean
@@ -81,7 +84,10 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties: 
       # AssignIpv6AddressOnCreation: false
-      AvailabilityZone: eu-north-1b
+      AvailabilityZone: 
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: !Ref AWS::Region
       # AvailabilityZoneId: String
       CidrBlock: !Ref pPublicSubnet02CidrBlock
       # EnableDns64: Boolean
@@ -99,7 +105,10 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties: 
       # AssignIpv6AddressOnCreation: false
-      AvailabilityZone: eu-north-1a
+      AvailabilityZone: 
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: !Ref AWS::Region
       # AvailabilityZoneId: String
       CidrBlock: !Ref pPrivateSubnet01CidrBlock
       # EnableDns64: Boolean
@@ -117,7 +126,10 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties: 
       # AssignIpv6AddressOnCreation: false
-      AvailabilityZone: eu-north-1b
+      AvailabilityZone: 
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: !Ref AWS::Region
       # AvailabilityZoneId: String
       CidrBlock: !Ref pPrivateSubnet02CidrBlock
       # EnableDns64: Boolean
@@ -359,3 +371,5 @@ Outputs:
     Description: "Bastion IP"
     Value: !GetAtt Bastion.PublicIp
     Condition: haveBastion
+  MyStacksRegion:
+    Value: !Ref "AWS::Region"
