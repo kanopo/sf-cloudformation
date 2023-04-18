@@ -208,6 +208,41 @@ Resources:
       RouteTableId: !Ref PrivateRouteTable01
       SubnetId: !Ref PrivateSubnet02
 
+
+
+  # InboundSSHRuleSecuryGroup:
+  #   Type: AWS::EC2::SecurityGroupIngress
+  #   Properties:
+  #     CidrIp: '0.0.0.0/0'
+  #     # CidrIpv6: String
+  #     Description: SSH inbound rule
+  #     FromPort: 22
+  #     # GroupId: !Ref SecurityGroupSsh
+  #     GroupName: InboundSSHRuleSecuryGroup 
+  #     IpProtocol: tcp
+  #     # SourcePrefixListId: String
+  #     # SourceSecurityGroupId: String
+  #     # SourceSecurityGroupName: String
+  #     # SourceSecurityGroupOwnerId: String
+  #     ToPort: 22 
+
+  BastionSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupDescription: Security group for ssh connections
+      GroupName: BastionSecurityGroup
+      # SecurityGroupEgress: 
+      #   - Egress
+      SecurityGroupIngress: 
+        - IpProtocol: tcp
+          FromPort: "22"
+          ToPort: "22"
+          CidrIp: "0.0.0.0/0"
+      # Tags: 
+      #   - Tag
+      VpcId: !Ref VPC
+
+
   Bastion:
     Type: AWS::EC2::Instance
     Properties: 
@@ -254,8 +289,8 @@ Resources:
       # PrivateIpAddress: String
       # PropagateTagsToVolumeOnCreation: Boolean
       # RamdiskId: String
-      # SecurityGroupIds: 
-      #   - String
+      SecurityGroupIds: 
+        - !Ref BastionSecurityGroup
       # SecurityGroups: 
       #   - String
       # SourceDestCheck: Boolean
