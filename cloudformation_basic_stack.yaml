@@ -1,4 +1,4 @@
-Description: Template for a basic vpc, with 4 subnets, 1 bastion
+Description: 'Spawn vpc, 4 subnet(2 pub, 2 priv), internet gateway, nat, bastion'
 Parameters:
   pVpcCidrBlock:
     Description: VPC CIDR range
@@ -24,6 +24,22 @@ Parameters:
     Description: Subnet CIDR range
     Type: String
     Default: '10.10.3.0/24'
+
+
+
+  pCreateBastion:
+    Description: Create bastion host
+    Type: String
+    AllowedValues:
+      - "yes"
+      - "no"
+    Default: "yes"
+
+
+Conditions:
+  haveBastion: !Equals
+    - !Ref pCreateBastion
+    - "yes"
 
 Resources:
   VPC:
@@ -148,7 +164,6 @@ Resources:
 
 
   PublicRoute01:
-    # TODO: non ho inserito la route che punta agli indirizzi interni delle 4 subnet, lo fa in automatico?
     Type: AWS::EC2::Route
     Properties: 
       # CarrierGatewayId: String
@@ -166,7 +181,6 @@ Resources:
       # VpcPeeringConnectionId: String
 
   PrivateRoute01:
-    # TODO: non ho inserito la route che punta agli indirizzi interni delle 4 subnet, lo fa in automatico?
     Type: AWS::EC2::Route
     Properties: 
       # CarrierGatewayId: String
@@ -228,6 +242,7 @@ Resources:
 
   BastionSecurityGroup:
     Type: AWS::EC2::SecurityGroup
+    Condition: haveBastion
     Properties: 
       GroupDescription: Security group for ssh connections
       GroupName: BastionSecurityGroup
@@ -245,6 +260,7 @@ Resources:
 
   Bastion:
     Type: AWS::EC2::Instance
+    Condition: haveBastion
     Properties: 
       # AdditionalInfo: String
       # Affinity: String
@@ -305,3 +321,30 @@ Resources:
       #   - Volume
 
 
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: "VPC setup"
+        Parameters:
+          - pVpcCidrBlock 
+      -
+        Label:
+          default: "Subnet configuration"
+        Parameters:
+          - pPublicSubnet01CidrBlock
+          - pPublicSubnet02CidrBlock
+          - pPrivateSubnet01CidrBlock
+          - pPrivateSubnet02CidrBlock
+      -
+        Label:
+          default: "Create bastion host"
+        Parameters:
+          - pCreateBastion
+
+Outputs:
+  BastionIp:
+    Description: "Bastion IP"
+    Value: !GetAtt Bastion.PublicIp
+    Condition: haveBastion
