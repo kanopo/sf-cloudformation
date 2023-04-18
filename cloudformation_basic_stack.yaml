@@ -25,6 +25,11 @@ Parameters:
     Type: String
     Default: '10.10.3.0/24'
 
+  pAmiId:
+    Description: AMI ID
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+
 
 
   pCreateBastion:
@@ -284,7 +289,7 @@ Resources:
       # HostId: String
       # HostResourceGroupArn: String
       # IamInstanceProfile: String
-      ImageId: ami-09df09abb6561fde5 
+      ImageId: !Ref pAmiId 
       # InstanceInitiatedShutdownBehavior: String
       InstanceType: t3.micro
       # Ipv6AddressCount: Integer
@@ -342,6 +347,12 @@ Metadata:
           default: "Create bastion host"
         Parameters:
           - pCreateBastion
+
+      -
+        Label:
+          default: "AMI ID"
+        Parameters:
+          - pAmiId
 
 Outputs:
   BastionIp:
