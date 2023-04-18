@@ -1,38 +1,38 @@
 Description: Template for a basic vpc, with 4 subnets, 1 bastion
 Parameters:
-  VpcCidrBlock:
+  pVpcCidrBlock:
     Description: VPC CIDR range
     Type: String
-    Default: 10.10.0.0/16
+    Default: '10.10.0.0/16'
 
-  PublicSubnet01CidrBlock:
+  pPublicSubnet01CidrBlock:
     Description: Subnet CIDR range
     Type: String
-    Default: 10.10.0.0/24
+    Default: '10.10.0.0/24'
 
-  PublicSubnet02CidrBlock:
+  pPublicSubnet02CidrBlock:
     Description: Subnet CIDR range
     Type: String
-    Default: 10.10.1.0/24
+    Default: '10.10.1.0/24'
   
-  PrivateSubnet01CidrBlock:
+  pPrivateSubnet01CidrBlock:
     Description: Subnet CIDR range
     Type: String
-    Default: 10.10.2.0/24
+    Default: '10.10.2.0/24'
   
-  PrivateSubnet02CidrBlock:
+  pPrivateSubnet02CidrBlock:
     Description: Subnet CIDR range
     Type: String
-    Default: 10.10.3.0/24
+    Default: '10.10.3.0/24'
 
 Resources:
   VPC:
     Type: AWS::EC2::VPC
     Properties: 
       CidrBlock: !Ref VpcCidrBlock
-      # EnableDnsHostnames: Boolean
-      # EnableDnsSupport: Boolean
-      # InstanceTenancy: String
+      EnableDnsHostnames: false
+      EnableDnsSupport: true
+      InstanceTenancy: Default
       # Ipv4IpamPoolId: String
       # Ipv4NetmaskLength: Integer
       # Tags: 
@@ -42,13 +42,13 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties: 
       AssignIpv6AddressOnCreation: false
-      # AvailabilityZone: String
+      AvailabilityZone: eu-north-1a
       # AvailabilityZoneId: String
       CidrBlock: !Ref PublicSubnet01CidrBlock
       # EnableDns64: Boolean
       # Ipv6CidrBlock: String
       # Ipv6Native: Boolean
-      # MapPublicIpOnLaunch: Boolean
+      MapPublicIpOnLaunch: true
       # OutpostArn: String
       # PrivateDnsNameOptionsOnLaunch: 
       #   PrivateDnsNameOptionsOnLaunch
@@ -60,13 +60,13 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties: 
       AssignIpv6AddressOnCreation: false
-      # AvailabilityZone: String
+      AvailabilityZone: eu-north-1b
       # AvailabilityZoneId: String
       CidrBlock: !Ref PublicSubnet02CidrBlock
       # EnableDns64: Boolean
       # Ipv6CidrBlock: String
       # Ipv6Native: Boolean
-      # MapPublicIpOnLaunch: Boolean
+      MapPublicIpOnLaunch: true
       # OutpostArn: String
       # PrivateDnsNameOptionsOnLaunch: 
       #   PrivateDnsNameOptionsOnLaunch
@@ -78,13 +78,13 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties: 
       AssignIpv6AddressOnCreation: false
-      # AvailabilityZone: String
+      AvailabilityZone: eu-north-1a
       # AvailabilityZoneId: String
       CidrBlock: !Ref PrivateSubnet01CidrBlock
       # EnableDns64: Boolean
       # Ipv6CidrBlock: String
       # Ipv6Native: Boolean
-      # MapPublicIpOnLaunch: Boolean
+      MapPublicIpOnLaunch: false
       # OutpostArn: String
       # PrivateDnsNameOptionsOnLaunch: 
       #   PrivateDnsNameOptionsOnLaunch
@@ -96,13 +96,13 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties: 
       AssignIpv6AddressOnCreation: false
-      # AvailabilityZone: String
+      AvailabilityZone: eu-north-1b
       # AvailabilityZoneId: String
       CidrBlock: !Ref PrivateSubnet01CidrBlock
       # EnableDns64: Boolean
       # Ipv6CidrBlock: String
       # Ipv6Native: Boolean
-      # MapPublicIpOnLaunch: Boolean
+      MapPublicIpOnLaunch: false
       # OutpostArn: String
       # PrivateDnsNameOptionsOnLaunch: 
       #   PrivateDnsNameOptionsOnLaunch
@@ -110,9 +110,131 @@ Resources:
       #   - Tag
       VpcId: !Ref VPC
 
-  PublicRouteTable01:
-  PrivateRouteTable01:
+
   InternetGateway01:
-  NatGateway01:
+    Type: AWS::EC2::InternetGateway
+
+  NATGateway01:
+     Type: AWS::EC2::NatGateway
+     Properties:
+        AllocationId: !GetAtt NATGatewayEIP.AllocationId
+        SubnetId: !Ref PublicSubnet01
+
+
+  NATGatewayEIP01:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+    DependsOn: VPC
+
+
+  PublicRouteTable01:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PrivateRouteTable01:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+
+  PublicRoute01:
+    # TODO: non ho inserito la route che punta agli indirizzi interni delle 4 subnet, lo fa in automatico?
+    Type: AWS::EC2::Route
+    Properties: 
+      # CarrierGatewayId: String
+      DestinationCidrBlock: '0.0.0.0/0'
+      # DestinationIpv6CidrBlock: String
+      # EgressOnlyInternetGatewayId: String
+      GatewayId: !Ref InternetGateway01
+      # InstanceId: String
+      # LocalGatewayId: String
+      # NatGatewayId: String
+      # NetworkInterfaceId: String
+      RouteTableId: !Ref PublicRouteTable01
+      # TransitGatewayId: String
+      # VpcEndpointId: String
+      # VpcPeeringConnectionId: String
+
+  PrivateRoute01:
+    # TODO: non ho inserito la route che punta agli indirizzi interni delle 4 subnet, lo fa in automatico?
+    Type: AWS::EC2::Route
+    Properties: 
+      # CarrierGatewayId: String
+      DestinationCidrBlock: '0.0.0.0/0'
+      # DestinationIpv6CidrBlock: String
+      # EgressOnlyInternetGatewayId: String
+      # GatewayId: string
+      # InstanceId: String
+      # LocalGatewayId: String
+      NatGatewayId: !Ref NATGateway01
+      # NetworkInterfaceId: String
+      RouteTableId: !Ref PrivateRouteTable01
+      # TransitGatewayId: String
+      # VpcEndpointId: String
+      # VpcPeeringConnectionId: String
+    DependsOn: NATGateway01
+
   Bastion:
+    Type: AWS::EC2::Instance
+    Properties: 
+      # AdditionalInfo: String
+      # Affinity: String
+      # AvailabilityZone: String
+      # BlockDeviceMappings: 
+      #   - BlockDeviceMapping
+      # CpuOptions: 
+      #   CpuOptions
+      # CreditSpecification: 
+      #   CreditSpecification
+      DisableApiTermination: false
+      EbsOptimized: false
+      # ElasticGpuSpecifications: 
+      #   - ElasticGpuSpecification
+      # ElasticInferenceAccelerators: 
+      #   - ElasticInferenceAccelerator
+      # EnclaveOptions: 
+      #   EnclaveOptions
+      # HibernationOptions: 
+      #   HibernationOptions
+      # HostId: String
+      # HostResourceGroupArn: String
+      # IamInstanceProfile: String
+      ImageId: ami-09df09abb6561fde5 
+      # InstanceInitiatedShutdownBehavior: String
+      InstanceType: t3.micro
+      # Ipv6AddressCount: Integer
+      # Ipv6Addresses: 
+      #   - InstanceIpv6Address
+      # KernelId: String
+      KeyName: dmitri
+      # LaunchTemplate: 
+      #   LaunchTemplateSpecification
+      # LicenseSpecifications: 
+      #   - LicenseSpecification
+      Monitoring: true
+      # NetworkInterfaces: 
+      #   - !Ref N
+      # PlacementGroupName: String
+      # PrivateDnsNameOptions: 
+      #   PrivateDnsNameOptions
+      # PrivateIpAddress: String
+      # PropagateTagsToVolumeOnCreation: Boolean
+      # RamdiskId: String
+      SecurityGroupIds: 
+        - String
+      # SecurityGroups: 
+      #   - String
+      # SourceDestCheck: Boolean
+      # SsmAssociations: 
+      #   - SsmAssociation
+      SubnetId: !Ref PublicSubnet01
+      # Tags: 
+      #   - Tag
+      # Tenancy: String
+      # UserData: String
+      # Volumes: 
+      #   - Volume
+
 
