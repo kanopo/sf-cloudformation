@@ -29,10 +29,10 @@ Resources:
   VPC:
     Type: AWS::EC2::VPC
     Properties: 
-      CidrBlock: !Ref VpcCidrBlock
+      CidrBlock: !Ref pVpcCidrBlock
       EnableDnsHostnames: false
       EnableDnsSupport: true
-      InstanceTenancy: Default
+      InstanceTenancy: default
       # Ipv4IpamPoolId: String
       # Ipv4NetmaskLength: Integer
       # Tags: 
@@ -41,10 +41,10 @@ Resources:
   PublicSubnet01:
     Type: AWS::EC2::Subnet
     Properties: 
-      AssignIpv6AddressOnCreation: false
+      # AssignIpv6AddressOnCreation: false
       AvailabilityZone: eu-north-1a
       # AvailabilityZoneId: String
-      CidrBlock: !Ref PublicSubnet01CidrBlock
+      CidrBlock: !Ref pPublicSubnet01CidrBlock
       # EnableDns64: Boolean
       # Ipv6CidrBlock: String
       # Ipv6Native: Boolean
@@ -59,10 +59,10 @@ Resources:
   PublicSubnet02:
     Type: AWS::EC2::Subnet
     Properties: 
-      AssignIpv6AddressOnCreation: false
+      # AssignIpv6AddressOnCreation: false
       AvailabilityZone: eu-north-1b
       # AvailabilityZoneId: String
-      CidrBlock: !Ref PublicSubnet02CidrBlock
+      CidrBlock: !Ref pPublicSubnet02CidrBlock
       # EnableDns64: Boolean
       # Ipv6CidrBlock: String
       # Ipv6Native: Boolean
@@ -77,10 +77,10 @@ Resources:
   PrivateSubnet01:
     Type: AWS::EC2::Subnet
     Properties: 
-      AssignIpv6AddressOnCreation: false
+      # AssignIpv6AddressOnCreation: false
       AvailabilityZone: eu-north-1a
       # AvailabilityZoneId: String
-      CidrBlock: !Ref PrivateSubnet01CidrBlock
+      CidrBlock: !Ref pPrivateSubnet01CidrBlock
       # EnableDns64: Boolean
       # Ipv6CidrBlock: String
       # Ipv6Native: Boolean
@@ -95,10 +95,10 @@ Resources:
   PrivateSubnet02:
     Type: AWS::EC2::Subnet
     Properties: 
-      AssignIpv6AddressOnCreation: false
+      # AssignIpv6AddressOnCreation: false
       AvailabilityZone: eu-north-1b
       # AvailabilityZoneId: String
-      CidrBlock: !Ref PrivateSubnet01CidrBlock
+      CidrBlock: !Ref pPrivateSubnet02CidrBlock
       # EnableDns64: Boolean
       # Ipv6CidrBlock: String
       # Ipv6Native: Boolean
@@ -114,10 +114,18 @@ Resources:
   InternetGateway01:
     Type: AWS::EC2::InternetGateway
 
+  VpcGatewayAttachment01:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: 
+      InternetGatewayId: !Ref InternetGateway01
+      VpcId: !Ref VPC
+      # VpnGatewayId: String
+
+
   NATGateway01:
      Type: AWS::EC2::NatGateway
      Properties:
-        AllocationId: !GetAtt NATGatewayEIP.AllocationId
+        AllocationId: !GetAtt NATGatewayEIP01.AllocationId
         SubnetId: !Ref PublicSubnet01
 
 
@@ -188,8 +196,8 @@ Resources:
       #   CpuOptions
       # CreditSpecification: 
       #   CreditSpecification
-      DisableApiTermination: false
-      EbsOptimized: false
+      # DisableApiTermination: false
+      # EbsOptimized: false
       # ElasticGpuSpecifications: 
       #   - ElasticGpuSpecification
       # ElasticInferenceAccelerators: 
@@ -222,8 +230,8 @@ Resources:
       # PrivateIpAddress: String
       # PropagateTagsToVolumeOnCreation: Boolean
       # RamdiskId: String
-      SecurityGroupIds: 
-        - String
+      # SecurityGroupIds: 
+      #   - String
       # SecurityGroups: 
       #   - String
       # SourceDestCheck: Boolean
