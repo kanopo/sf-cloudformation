@@ -40,10 +40,21 @@ Parameters:
       - "no"
     Default: "yes"
 
+  pCreateNat:
+    Description: Create NAT Gateway
+    Type: String
+    AllowedValues:
+      - "yes"
+      - "no" 
+
 
 Conditions:
   haveBastion: !Equals
     - !Ref pCreateBastion
+    - "yes"
+
+  haveNat: !Equals
+    - !Ref pCreateNat
     - "yes"
 
 Resources:
@@ -357,6 +368,10 @@ Metadata:
       -
         Label:
           default: "Create bastion host"
+
+      -
+        Label:
+          default: "Create NAT Gateway"
         Parameters:
           - pCreateBastion
 
