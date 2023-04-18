@@ -184,6 +184,30 @@ Resources:
       # VpcPeeringConnectionId: String
     DependsOn: NATGateway01
 
+  PublicRouteTableAssociation01:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref PublicRouteTable01
+      SubnetId: !Ref PublicSubnet01
+
+  PublicRouteTableAssociation02:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref PublicRouteTable01
+      SubnetId: !Ref PublicSubnet02
+
+  PrivateRouteTableAssociation01:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref PrivateRouteTable01
+      SubnetId: !Ref PrivateSubnet01
+
+  PrivateRouteTableAssociation02:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref PrivateRouteTable01
+      SubnetId: !Ref PrivateSubnet02
+
   Bastion:
     Type: AWS::EC2::Instance
     Properties: 
