@@ -57,6 +57,10 @@ Conditions:
     - !Ref pCreateNat
     - "yes"
 
+  notHaveNat: !Equals
+    - !Ref pCreateNat
+    - "no"
+
 Resources:
   VPC:
     Type: AWS::EC2::VPC
@@ -167,8 +171,9 @@ Resources:
 
 
   NATGateway01:
-     Type: AWS::EC2::NatGateway
-     Properties:
+    Type: AWS::EC2::NatGateway
+    Condition: haveNat
+    Properties:
         AllocationId: !GetAtt NATGatewayEIP01.AllocationId
         SubnetId: !Ref PublicSubnet01
 
@@ -216,15 +221,16 @@ Resources:
       # DestinationIpv6CidrBlock: String
       # EgressOnlyInternetGatewayId: String
       # GatewayId: string
-      # InstanceId: String
+      InstanceId: !If [haveNat, !Ref AWS::NoValue, !Ref Bastion]
       # LocalGatewayId: String
-      NatGatewayId: !Ref NATGateway01
+      # NatGatewayId: !Ref NATGateway01
+      NatGatewayId: !If [haveNat, !Ref NATGateway01, !Ref AWS::NoValue]
       # NetworkInterfaceId: String
       RouteTableId: !Ref PrivateRouteTable01
       # TransitGatewayId: String
       # VpcEndpointId: String
       # VpcPeeringConnectionId: String
-    DependsOn: NATGateway01
+    # DependsOn: NATGateway01
 
   PublicRouteTableAssociation01:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -251,23 +257,6 @@ Resources:
       SubnetId: !Ref PrivateSubnet02
 
 
-
-  # InboundSSHRuleSecuryGroup:
-  #   Type: AWS::EC2::SecurityGroupIngress
-  #   Properties:
-  #     CidrIp: '0.0.0.0/0'
-  #     # CidrIpv6: String
-  #     Description: SSH inbound rule
-  #     FromPort: 22
-  #     # GroupId: !Ref SecurityGroupSsh
-  #     GroupName: InboundSSHRuleSecuryGroup 
-  #     IpProtocol: tcp
-  #     # SourcePrefixListId: String
-  #     # SourceSecurityGroupId: String
-  #     # SourceSecurityGroupName: String
-  #     # SourceSecurityGroupOwnerId: String
-  #     ToPort: 22 
-
   BastionSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Condition: haveBastion
@@ -285,6 +274,43 @@ Resources:
       #   - Tag
       VpcId: !Ref VPC
 
+  BastionNatInstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Condition: notHaveNat
+    Properties: 
+      GroupDescription: Security group for bastion NAT instance
+      GroupName: BastionNatSecurityGroup
+      SecurityGroupEgress: 
+        - IpProtocol: "tcp"
+          FromPort: "80"
+          ToPort: "80"
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: "tcp"
+          FromPort: "443"
+          ToPort: "443"
+          CidrIp: "0.0.0.0/0"
+
+      SecurityGroupIngress: 
+        - IpProtocol: "tcp"
+          FromPort: "80"
+          ToPort: "80"
+          CidrIp: !GetAtt PrivateSubnet01.CidrBlock
+        - IpProtocol: "tcp"
+          FromPort: "443"
+          ToPort: "443"
+          CidrIp: !GetAtt PrivateSubnet01.CidrBlock
+
+        - IpProtocol: tcp
+          FromPort: "80"
+          ToPort: "80"
+          CidrIp: !GetAtt PrivateSubnet02.CidrBlock
+        - IpProtocol: tcp
+          FromPort: "443"
+          ToPort: "443"
+          CidrIp: !GetAtt PrivateSubnet02.CidrBlock
+      # Tags: 
+      #   - Tag
+      VpcId: !Ref VPC
 
   Bastion:
     Type: AWS::EC2::Instance
@@ -335,9 +361,10 @@ Resources:
       # RamdiskId: String
       SecurityGroupIds: 
         - !Ref BastionSecurityGroup
+        - !If [notHaveNat, !Ref BastionNatInstanceSecurityGroup, !Ref AWS::NoValue]
       # SecurityGroups: 
       #   - String
-      # SourceDestCheck: Boolean
+      SourceDestCheck: false
       # SsmAssociations: 
       #   - SsmAssociation
       SubnetId: !Ref PublicSubnet01
@@ -348,6 +375,68 @@ Resources:
       # Volumes: 
       #   - Volume
 
+
+  TestEc2:
+    Type: AWS::EC2::Instance
+    # Condition: haveBastion
+    Properties: 
+      # AdditionalInfo: String
+      # Affinity: String
+      # AvailabilityZone: String
+      # BlockDeviceMappings: 
+      #   - BlockDeviceMapping
+      # CpuOptions: 
+      #   CpuOptions
+      # CreditSpecification: 
+      #   CreditSpecification
+      # DisableApiTermination: false
+      # EbsOptimized: false
+      # ElasticGpuSpecifications: 
+      #   - ElasticGpuSpecification
+      # ElasticInferenceAccelerators: 
+      #   - ElasticInferenceAccelerator
+      # EnclaveOptions: 
+      #   EnclaveOptions
+      # HibernationOptions: 
+      #   HibernationOptions
+      # HostId: String
+      # HostResourceGroupArn: String
+      # IamInstanceProfile: String
+      ImageId: !Ref pAmiId 
+      # InstanceInitiatedShutdownBehavior: String
+      InstanceType: t3.micro
+      # Ipv6AddressCount: Integer
+      # Ipv6Addresses: 
+      #   - InstanceIpv6Address
+      # KernelId: String
+      KeyName: dmitri
+      # LaunchTemplate: 
+      #   LaunchTemplateSpecification
+      # LicenseSpecifications: 
+      #   - LicenseSpecification
+      Monitoring: true
+      # NetworkInterfaces: !If [haveNat, !Ref NATGateway01, !Ref Bastion]
+        # - !Ref N
+      # PlacementGroupName: String
+      # PrivateDnsNameOptions: 
+      #   PrivateDnsNameOptions
+      # PrivateIpAddress: String
+      # PropagateTagsToVolumeOnCreation: Boolean
+      # RamdiskId: String
+      SecurityGroupIds: 
+        - !Ref BastionSecurityGroup
+      # SecurityGroups: 
+      #   - String
+      # SourceDestCheck: Boolean
+      # SsmAssociations: 
+      #   - SsmAssociation
+      SubnetId: !Ref PrivateSubnet01
+      # Tags: 
+      #   - Tag
+      # Tenancy: String
+      # UserData: String
+      # Volumes: 
+      #   - Volume
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -386,5 +475,11 @@ Outputs:
     Description: "Bastion IP"
     Value: !GetAtt Bastion.PublicIp
     Condition: haveBastion
+
+  TestEc2Ip:
+    Description: "Test ec2 private subnet ip"
+    Value: !GetAtt TestEc2.PrivateIp
+    # Condition: haveBastion
+
   MyStacksRegion:
     Value: !Ref "AWS::Region"
