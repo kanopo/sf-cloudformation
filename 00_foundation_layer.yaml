@@ -1,29 +1,29 @@
-Description: 'Spawn vpc, 4 subnet(2 pub, 2 priv), internet gateway, nat, bastion'
+Description: 'Create basic VPC with 4 subents and 1 bastion'
 Parameters:
   pVpcCidrBlock:
     Description: VPC CIDR range
     Type: String
-    Default: '10.10.0.0/16'
+    Default: '10.0.0.0/16'
 
   pPublicSubnet01CidrBlock:
     Description: Subnet CIDR range
     Type: String
-    Default: '10.10.0.0/24'
+    Default: '10.0.0.0/24'
 
   pPublicSubnet02CidrBlock:
     Description: Subnet CIDR range
     Type: String
-    Default: '10.10.1.0/24'
+    Default: '10.0.1.0/24'
   
   pPrivateSubnet01CidrBlock:
     Description: Subnet CIDR range
     Type: String
-    Default: '10.10.2.0/24'
+    Default: '10.0.2.0/24'
   
   pPrivateSubnet02CidrBlock:
     Description: Subnet CIDR range
     Type: String
-    Default: '10.10.3.0/24'
+    Default: '10.0.3.0/24'
 
   pAmiId:
     Description: AMI ID
@@ -47,6 +47,11 @@ Parameters:
       - "yes"
       - "no" 
     Default: "yes"
+
+  # pOwner:
+  #   Description: This value is used as prefix for all exported values
+  #   Type: String
+  #   Default: "dmitri"
 
 
 Conditions:
@@ -74,6 +79,7 @@ Resources:
       # Ipv4NetmaskLength: Integer
       # Tags: 
       #   - Tag
+
 
   PublicSubnet01:
     Type: AWS::EC2::Subnet
@@ -390,67 +396,33 @@ Resources:
       #   - Volume
 
 
-  TestEc2:
-    Type: AWS::EC2::Instance
-    # Condition: haveBastion
-    Properties: 
-      # AdditionalInfo: String
-      # Affinity: String
-      # AvailabilityZone: String
-      # BlockDeviceMappings: 
-      #   - BlockDeviceMapping
-      # CpuOptions: 
-      #   CpuOptions
-      # CreditSpecification: 
-      #   CreditSpecification
-      # DisableApiTermination: false
-      # EbsOptimized: false
-      # ElasticGpuSpecifications: 
-      #   - ElasticGpuSpecification
-      # ElasticInferenceAccelerators: 
-      #   - ElasticInferenceAccelerator
-      # EnclaveOptions: 
-      #   EnclaveOptions
-      # HibernationOptions: 
-      #   HibernationOptions
-      # HostId: String
-      # HostResourceGroupArn: String
-      # IamInstanceProfile: String
-      ImageId: !Ref pAmiId 
-      # InstanceInitiatedShutdownBehavior: String
-      InstanceType: t3.micro
-      # Ipv6AddressCount: Integer
-      # Ipv6Addresses: 
-      #   - InstanceIpv6Address
-      # KernelId: String
-      KeyName: dmitri
-      # LaunchTemplate: 
-      #   LaunchTemplateSpecification
-      # LicenseSpecifications: 
-      #   - LicenseSpecification
-      Monitoring: true
-      # NetworkInterfaces: !If [haveNat, !Ref NATGateway01, !Ref Bastion]
-        # - !Ref N
-      # PlacementGroupName: String
-      # PrivateDnsNameOptions: 
-      #   PrivateDnsNameOptions
-      # PrivateIpAddress: String
-      # PropagateTagsToVolumeOnCreation: Boolean
-      # RamdiskId: String
-      SecurityGroupIds: 
-        - !Ref BastionSecurityGroup
-      # SecurityGroups: 
-      #   - String
-      # SourceDestCheck: Boolean
-      # SsmAssociations: 
-      #   - SsmAssociation
-      SubnetId: !Ref PrivateSubnet01
-      # Tags: 
-      #   - Tag
-      # Tenancy: String
-      # UserData: String
-      # Volumes: 
-      #   - Volume
+
+  SGFargateContainer:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for fargate container
+      # SecurityGroupEgress:
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: "3000"
+          ToPort: "3000"
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref VPC
+
+  SGDB:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for database
+      # SecurityGroupEgress:
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: "3306"
+          ToPort: "3306"
+          CidrIp: !GetAtt VPC.CidrBlock
+      VpcId: !Ref VPC
+
+
+
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -490,10 +462,55 @@ Outputs:
     Value: !GetAtt Bastion.PublicIp
     Condition: haveBastion
 
-  TestEc2Ip:
-    Description: "Test ec2 private subnet ip"
-    Value: !GetAtt TestEc2.PrivateIp
-    # Condition: haveBastion
-
   MyStacksRegion:
     Value: !Ref "AWS::Region"
+    Export: 
+      Name: dmitri-stack-region
+
+  VPC:
+    Description: VPC export
+    Value: !Ref VPC
+    Export: 
+      Name: dmitri-vpc
+
+  VPCCIDR:
+    Description: VPC CIDR block export
+    Value: !GetAtt VPC.CidrBlock
+    Export: 
+      Name: dmitri-vpc-cidr
+
+  PublicSubnet01:
+    Description: Public subnet export
+    Value: !Ref PublicSubnet01
+    Export:
+      Name: dmitri-public-subnet-01
+
+  PublicSubnet02:
+    Description: Public subnet export
+    Value: !Ref PublicSubnet02
+    Export:
+      Name: dmitri-public-subnet-02
+
+  PrivateSubnet01:
+    Description: Private subnet export
+    Value: !Ref PrivateSubnet01
+    Export:
+      Name: dmitri-private-subnet-01
+
+  PrivateSubnet02:
+    Description: Private subnet export
+    Value: !Ref PrivateSubnet02
+    Export:
+      Name: dmitri-private-subnet-02
+
+  SGFargateContainer:
+    Description: Allow inbound connection on port 3000
+    Value: !Ref SGFargateContainer
+    Export:
+      Name: dmitri-sg-fargate-container
+
+  SGDB:
+    Description: Securiity group for db connection
+    Value: !Ref SGDB
+    Export:
+      Name: dmitri-sg-db
