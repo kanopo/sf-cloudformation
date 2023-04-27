@@ -12,29 +12,16 @@ Parameters:
     Description: Password used for accessing database
     Type: String
     Default: password
-  # pEnableExecute:
-  #   Description: Enable access to FARGATE containers
-  #   Type: String
-  #   Default: true
-  #   AllowedValues:
-  #     - true
-  #     - false
+  pEnableExecute:
+    Description: Enable access to FARGATE containers
+    Type: String
+    Default: true
+    AllowedValues:
+      - true
+      - false
 
 
 Resources:
-  # SGDB:
-  #   Type: AWS::EC2::SecurityGroup
-  #   Properties: 
-  #     GroupDescription: Allow access to load balancer from port 3000
-  #     SecurityGroupIngress: 
-  #       - IpProtocol: tcp
-  #         FromPort: "3306"
-  #         ToPort: "3306"
-  #         CidrIp: 10.0.0.0/16
-  #         # CidrIp: 
-  #         #   Fn::ImportValue: !Sub dmitri-vpc-cidr
-  #     VpcId: 
-  #       Fn::ImportValue: !Sub dmitri-vpc
 
 
   DBSubnetGroup:
@@ -192,7 +179,7 @@ Resources:
       Cluster: !Ref ECSCluster
       DesiredCount: 2
       LaunchType: FARGATE
-      # EnableExecuteCommand: !Ref pEnableExecute
+      EnableExecuteCommand: !Ref pEnableExecute
       NetworkConfiguration:
         AwsvpcConfiguration:
           AssignPublicIp: DISABLED
