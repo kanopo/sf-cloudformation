@@ -22,8 +22,6 @@ Parameters:
 
 
 Resources:
-
-
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
@@ -45,6 +43,8 @@ Resources:
       DBSubnetGroupName: !Ref DBSubnetGroup
       VPCSecurityGroups:
         - Fn::ImportValue: !Sub dmitri-sg-db
+      KmsKeyId: arn:aws:kms:eu-north-1:861507897222:alias/dmitri-key-parameters-simmetric
+      StorageEncrypted: true
 
 
   SGLoadBalancer:
@@ -177,7 +177,7 @@ Resources:
     Type: AWS::ECS::Service
     Properties:
       Cluster: !Ref ECSCluster
-      DesiredCount: 2
+      DesiredCount: !Ref pNumberFargateInstances
       LaunchType: FARGATE
       EnableExecuteCommand: !Ref pEnableExecute
       NetworkConfiguration:
@@ -198,6 +198,21 @@ Resources:
 
   ArtifactStoreBucket:
     Type: "AWS::S3::Bucket"
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - BucketKeyEnabled: true
+            ServerSideEncryptionByDefault:
+              KMSMasterKeyID: arn:aws:kms:eu-north-1:861507897222:alias/dmitri-key-parameters-simmetric
+              SSEAlgorithm: aws:kms
+
+
+  # CleanBucket:
+  #   Type: Custom::cleanBucket
+  #   Properties: 
+  #     ServiceToken: arn:aws:lambda:eu-north-1:861507897222:function:dmitri-clean-bucket-before-deletion
+  #     BucketName: !Ref ArtifactStoreBucket
+
 
 
 
