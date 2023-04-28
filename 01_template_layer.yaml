@@ -31,7 +31,7 @@ Resources:
         - Fn::ImportValue: !Sub dmitri-private-subnet-02
 
 
-  MyDB:
+  DBInstance:
     Type: AWS::RDS::DBInstance
     Properties:
       AllocatedStorage: 20
@@ -174,7 +174,7 @@ Resources:
             - Name: DB_DATABASE
               Value: node_app
             - Name: DB_HOST
-              Value: !GetAtt MyDB.Endpoint.Address
+              Value: !GetAtt DB.Endpoint.Address
             - Name: DB_PASSWORD
               Value: !Ref pDatabasePassword
             - Name: DB_PORT
@@ -185,7 +185,7 @@ Resources:
             LogDriver: awslogs
             Options:
               "awslogs-group": "node-ecs"
-              "awslogs-region": "eu-north-1"
+              "awslogs-region": !Ref AWS::Region
               "awslogs-create-group": "true"
               "awslogs-stream-prefix": "dmitri"
 
