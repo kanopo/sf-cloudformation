@@ -48,10 +48,6 @@ Parameters:
       - "no" 
     Default: "yes"
 
-  # pOwner:
-  #   Description: This value is used as prefix for all exported values
-  #   Type: String
-  #   Default: "dmitri"
 
 
 Conditions:
@@ -75,94 +71,50 @@ Resources:
       EnableDnsHostnames: false
       EnableDnsSupport: true
       InstanceTenancy: default
-      # Ipv4IpamPoolId: String
-      # Ipv4NetmaskLength: Integer
-      # Tags: 
-      #   - Tag
 
 
   PublicSubnet01:
     Type: AWS::EC2::Subnet
     Properties: 
-      # AssignIpv6AddressOnCreation: false
       AvailabilityZone: 
         Fn::Select:
           - 0
           - Fn::GetAZs: !Ref AWS::Region
-      # AvailabilityZoneId: String
       CidrBlock: !Ref pPublicSubnet01CidrBlock
-      # EnableDns64: Boolean
-      # Ipv6CidrBlock: String
-      # Ipv6Native: Boolean
       MapPublicIpOnLaunch: true
-      # OutpostArn: String
-      # PrivateDnsNameOptionsOnLaunch: 
-      #   PrivateDnsNameOptionsOnLaunch
-      # Tags: 
-      #   - Tag
       VpcId: !Ref VPC
 
   PublicSubnet02:
     Type: AWS::EC2::Subnet
     Properties: 
-      # AssignIpv6AddressOnCreation: false
       AvailabilityZone: 
         Fn::Select:
           - 1
           - Fn::GetAZs: !Ref AWS::Region
-      # AvailabilityZoneId: String
       CidrBlock: !Ref pPublicSubnet02CidrBlock
-      # EnableDns64: Boolean
-      # Ipv6CidrBlock: String
-      # Ipv6Native: Boolean
       MapPublicIpOnLaunch: true
-      # OutpostArn: String
-      # PrivateDnsNameOptionsOnLaunch: 
-      #   PrivateDnsNameOptionsOnLaunch
-      # Tags: 
-      #   - Tag
       VpcId: !Ref VPC
 
   PrivateSubnet01:
     Type: AWS::EC2::Subnet
     Properties: 
-      # AssignIpv6AddressOnCreation: false
       AvailabilityZone: 
         Fn::Select:
           - 0
           - Fn::GetAZs: !Ref AWS::Region
-      # AvailabilityZoneId: String
       CidrBlock: !Ref pPrivateSubnet01CidrBlock
-      # EnableDns64: Boolean
-      # Ipv6CidrBlock: String
-      # Ipv6Native: Boolean
       MapPublicIpOnLaunch: false
-      # OutpostArn: String
-      # PrivateDnsNameOptionsOnLaunch: 
-      #   PrivateDnsNameOptionsOnLaunch
-      # Tags: 
-      #   - Tag
       VpcId: !Ref VPC
 
   PrivateSubnet02:
     Type: AWS::EC2::Subnet
     Properties: 
-      # AssignIpv6AddressOnCreation: false
       AvailabilityZone: 
         Fn::Select:
           - 1
           - Fn::GetAZs: !Ref AWS::Region
-      # AvailabilityZoneId: String
       CidrBlock: !Ref pPrivateSubnet02CidrBlock
-      # EnableDns64: Boolean
-      # Ipv6CidrBlock: String
-      # Ipv6Native: Boolean
       MapPublicIpOnLaunch: false
-      # OutpostArn: String
-      # PrivateDnsNameOptionsOnLaunch: 
-      #   PrivateDnsNameOptionsOnLaunch
-      # Tags: 
-      #   - Tag
       VpcId: !Ref VPC
 
 
@@ -174,15 +126,14 @@ Resources:
     Properties: 
       InternetGatewayId: !Ref InternetGateway01
       VpcId: !Ref VPC
-      # VpnGatewayId: String
 
 
   NATGateway01:
     Type: AWS::EC2::NatGateway
     Condition: haveNat
     Properties:
-        AllocationId: !GetAtt NATGatewayEIP01.AllocationId
-        SubnetId: !Ref PublicSubnet01
+      AllocationId: !GetAtt NATGatewayEIP01.AllocationId
+      SubnetId: !Ref PublicSubnet01
 
 
   NATGatewayEIP01:
@@ -206,38 +157,17 @@ Resources:
   PublicRoute01:
     Type: AWS::EC2::Route
     Properties: 
-      # CarrierGatewayId: String
       DestinationCidrBlock: '0.0.0.0/0'
-      # DestinationIpv6CidrBlock: String
-      # EgressOnlyInternetGatewayId: String
       GatewayId: !Ref InternetGateway01
-      # InstanceId: String
-      # LocalGatewayId: String
-      # NatGatewayId: String
-      # NetworkInterfaceId: String
       RouteTableId: !Ref PublicRouteTable01
-      # TransitGatewayId: String
-      # VpcEndpointId: String
-      # VpcPeeringConnectionId: String
 
   PrivateRoute01:
     Type: AWS::EC2::Route
     Properties: 
-      # CarrierGatewayId: String
       DestinationCidrBlock: '0.0.0.0/0'
-      # DestinationIpv6CidrBlock: String
-      # EgressOnlyInternetGatewayId: String
-      # GatewayId: string
       InstanceId: !If [haveNat, !Ref AWS::NoValue, !Ref Bastion]
-      # LocalGatewayId: String
-      # NatGatewayId: !Ref NATGateway01
       NatGatewayId: !If [haveNat, !Ref NATGateway01, !Ref AWS::NoValue]
-      # NetworkInterfaceId: String
       RouteTableId: !Ref PrivateRouteTable01
-      # TransitGatewayId: String
-      # VpcEndpointId: String
-      # VpcPeeringConnectionId: String
-    # DependsOn: NATGateway01
 
   PublicRouteTableAssociation01:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -270,15 +200,11 @@ Resources:
     Properties: 
       GroupDescription: Security group for ssh connections
       GroupName: BastionSecurityGroup
-      # SecurityGroupEgress: 
-      #   - Egress
       SecurityGroupIngress: 
         - IpProtocol: tcp
           FromPort: "22"
           ToPort: "22"
           CidrIp: "0.0.0.0/0"
-      # Tags: 
-      #   - Tag
       VpcId: !Ref VPC
 
   BastionNatInstanceSecurityGroup:
@@ -315,70 +241,21 @@ Resources:
           FromPort: "443"
           ToPort: "443"
           CidrIp: !GetAtt PrivateSubnet02.CidrBlock
-      # Tags: 
-      #   - Tag
       VpcId: !Ref VPC
 
   Bastion:
     Type: AWS::EC2::Instance
     Condition: haveBastion
     Properties: 
-      # AdditionalInfo: String
-      # Affinity: String
-      # AvailabilityZone: String
-      # BlockDeviceMappings: 
-      #   - BlockDeviceMapping
-      # CpuOptions: 
-      #   CpuOptions
-      # CreditSpecification: 
-      #   CreditSpecification
-      # DisableApiTermination: false
-      # EbsOptimized: false
-      # ElasticGpuSpecifications: 
-      #   - ElasticGpuSpecification
-      # ElasticInferenceAccelerators: 
-      #   - ElasticInferenceAccelerator
-      # EnclaveOptions: 
-      #   EnclaveOptions
-      # HibernationOptions: 
-      #   HibernationOptions
-      # HostId: String
-      # HostResourceGroupArn: String
-      # IamInstanceProfile: String
       ImageId: !Ref pAmiId 
-      # InstanceInitiatedShutdownBehavior: String
       InstanceType: t3.micro
-      # Ipv6AddressCount: Integer
-      # Ipv6Addresses: 
-      #   - InstanceIpv6Address
-      # KernelId: String
       KeyName: dmitri
-      # LaunchTemplate: 
-      #   LaunchTemplateSpecification
-      # LicenseSpecifications: 
-      #   - LicenseSpecification
       Monitoring: true
-      # NetworkInterfaces: 
-      #   - !Ref N
-      # PlacementGroupName: String
-      # PrivateDnsNameOptions: 
-      #   PrivateDnsNameOptions
-      # PrivateIpAddress: String
-      # PropagateTagsToVolumeOnCreation: Boolean
-      # RamdiskId: String
       SecurityGroupIds: 
         - !Ref BastionSecurityGroup
         - !If [notHaveNat, !Ref BastionNatInstanceSecurityGroup, !Ref AWS::NoValue]
-      # SecurityGroups: 
-      #   - String
       SourceDestCheck: false
-      # SsmAssociations: 
-      #   - SsmAssociation
       SubnetId: !Ref PublicSubnet01
-      # Tags: 
-      #   - Tag
-      # Tenancy: String
-      # UserData: "sudo yum install iptables-services -y; echo 1 > /proc/sys/net/ipv4/ip_forward; iptables -t nat -A POSTROUTING -j MASQUERADE; iptables-save > /etc/sysconfig/iptables; systemctl enable iptables; systemctl start iptables"
       UserData: 
         Fn::Base64: |
           #!/bin/sh
@@ -392,16 +269,11 @@ Resources:
           net.ipv4.conf.eth0.send_redirects = 0
           EOF 
 
-      # Volumes: 
-      #   - Volume
-
-
 
   SGFargateContainer:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Security group for fargate container
-      # SecurityGroupEgress:
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: "3000"
@@ -413,16 +285,12 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Security group for database
-      # SecurityGroupEgress:
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: "3306"
           ToPort: "3306"
           CidrIp: !GetAtt VPC.CidrBlock
       VpcId: !Ref VPC
-
-
-
 
 Metadata:
   AWS::CloudFormation::Interface:

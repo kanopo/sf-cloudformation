@@ -15,7 +15,7 @@ Parameters:
   pEnableExecute:
     Description: Enable access to FARGATE containers
     Type: String
-    Default: true
+    Default: false
     AllowedValues:
       - true
       - false
@@ -53,17 +53,17 @@ Resources:
       GroupDescription: Allow access to load balancer from port 3000
       SecurityGroupIngress: 
         - IpProtocol: tcp
-          FromPort: "3000"
-          ToPort: "3000"
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
           FromPort: "80"
           ToPort: "80"
           CidrIp: 0.0.0.0/0
+        # - IpProtocol: tcp
+        #   FromPort: "443"
+        #   ToPort: "443"
+        #   CidrIp: 0.0.0.0/0
       VpcId: 
         Fn::ImportValue: !Sub dmitri-vpc
 
-  ECSApplicationLoadBalancer:
+  ALB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties: 
       IpAddressType: ipv4
@@ -75,38 +75,56 @@ Resources:
         - Fn::ImportValue: !Sub dmitri-public-subnet-01
         - Fn::ImportValue: !Sub dmitri-public-subnet-02
 
-  ECSListener3000:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties: 
-      DefaultActions: 
-        - Type: redirect
-          RedirectConfig:
-            Protocol: "HTTP"
-            Port: 80
-            Host: "#{host}"
-            Path: "/#{path}"
-            Query: "#{query}"
-            StatusCode: "HTTP_301" 
-      LoadBalancerArn: !Ref ECSApplicationLoadBalancer
-      Port: 3000
-      Protocol: HTTP
-
-  ECSListener80:
+  ALBListener80:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties: 
       DefaultActions: 
         - Type: forward
           TargetGroupArn: !Ref TargetGroup
-      LoadBalancerArn: !Ref ECSApplicationLoadBalancer
+      LoadBalancerArn: !Ref ALB
       Port: 80
       Protocol: HTTP
+
+  # HTTPSCertificate:
+  #   Type: AWS::CertificateManager::Certificate
+  #   Properties: 
+  #     # CertificateAuthorityArn: String
+  #     # CertificateTransparencyLoggingPreference: String
+  #     DomainName: dmitri.sandbox.soluzionifutura.it
+  #     # DomainValidationOptions: 
+  #     #   - DomainValidationOption
+  #     # SubjectAlternativeNames: 
+  #     #   - String
+  #     ValidationMethod: DNS
+  #
+  # ALBListener443:
+  #   Type: AWS::ElasticLoadBalancingV2::Listener
+  #   Properties: 
+  #     DefaultActions: 
+  #       - Type: forward
+  #         TargetGroupArn: !Ref TargetGroup
+  #     LoadBalancerArn: !Ref ECSApplicationLoadBalancer
+  #     Port: 443
+  #     Protocol: HTTPS
+  #     Certificates:
+  #       - CertificateArn: !Ref HTTPSCertificate
+  # 
+  # DNSRecord:
+  #   Type: AWS::Route53::RecordSet
+  #   Properties:
+  #     HostedZoneId : !GetAtt ECSApplicationLoadBalancer.CanonicalHostedZoneID
+  #     Name: dmitri.sandbox.soluzionifutura.it 
+  #     ResourceRecords:
+  #     - !GetAtt ECSApplicationLoadBalancer.DNSName
+  #     TTL: 900
+  #     Type: CNAME
 
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties: 
       IpAddressType: ipv4
-      Name: dmitri-target-group
-      Port: 80
+      # Name: dmitri-target-group
+      Port: 3000
       Protocol: HTTP 
       ProtocolVersion: HTTP1
       TargetType: ip
@@ -123,7 +141,7 @@ Resources:
         - Name: containerInsights
           Value: enabled
 
-    DependsOn: ECSApplicationLoadBalancer
+    DependsOn: ALB
 
 
 
@@ -275,7 +293,7 @@ Resources:
 Outputs:
   LoadBalancerDns:
     Description: Load balancer dns name
-    Value: !GetAtt ECSApplicationLoadBalancer.DNSName
+    Value: !GetAtt ALB.DNSName
 
   MysqlUrl:
     Description: Mysql url
