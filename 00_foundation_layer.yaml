@@ -193,7 +193,6 @@ Resources:
       RouteTableId: !Ref PrivateRouteTable01
       SubnetId: !Ref PrivateSubnet02
 
-
   BastionSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Condition: haveBastion
