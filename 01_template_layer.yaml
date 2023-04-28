@@ -12,31 +12,16 @@ Parameters:
     Description: Password used for accessing database
     Type: String
     Default: password
-  # pEnableExecute:
-  #   Description: Enable access to FARGATE containers
-  #   Type: String
-  #   Default: true
-  #   AllowedValues:
-  #     - true
-  #     - false
+  pEnableExecute:
+    Description: Enable access to FARGATE containers
+    Type: String
+    Default: false
+    AllowedValues:
+      - true
+      - false
 
 
 Resources:
-  # SGDB:
-  #   Type: AWS::EC2::SecurityGroup
-  #   Properties: 
-  #     GroupDescription: Allow access to load balancer from port 3000
-  #     SecurityGroupIngress: 
-  #       - IpProtocol: tcp
-  #         FromPort: "3306"
-  #         ToPort: "3306"
-  #         CidrIp: 10.0.0.0/16
-  #         # CidrIp: 
-  #         #   Fn::ImportValue: !Sub dmitri-vpc-cidr
-  #     VpcId: 
-  #       Fn::ImportValue: !Sub dmitri-vpc
-
-
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
@@ -58,6 +43,8 @@ Resources:
       DBSubnetGroupName: !Ref DBSubnetGroup
       VPCSecurityGroups:
         - Fn::ImportValue: !Sub dmitri-sg-db
+      KmsKeyId: arn:aws:kms:eu-north-1:861507897222:alias/dmitri-key-parameters-simmetric
+      StorageEncrypted: true
 
 
   SGLoadBalancer:
@@ -66,17 +53,17 @@ Resources:
       GroupDescription: Allow access to load balancer from port 3000
       SecurityGroupIngress: 
         - IpProtocol: tcp
-          FromPort: "3000"
-          ToPort: "3000"
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
           FromPort: "80"
           ToPort: "80"
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: "443"
+          ToPort: "443"
           CidrIp: 0.0.0.0/0
       VpcId: 
         Fn::ImportValue: !Sub dmitri-vpc
 
-  ECSApplicationLoadBalancer:
+  ALB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties: 
       IpAddressType: ipv4
@@ -88,38 +75,56 @@ Resources:
         - Fn::ImportValue: !Sub dmitri-public-subnet-01
         - Fn::ImportValue: !Sub dmitri-public-subnet-02
 
-  ECSListener3000:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties: 
-      DefaultActions: 
-        - Type: redirect
-          RedirectConfig:
-            Protocol: "HTTP"
-            Port: 80
-            Host: "#{host}"
-            Path: "/#{path}"
-            Query: "#{query}"
-            StatusCode: "HTTP_301" 
-      LoadBalancerArn: !Ref ECSApplicationLoadBalancer
-      Port: 3000
-      Protocol: HTTP
-
-  ECSListener80:
+  ALBListener80:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties: 
       DefaultActions: 
         - Type: forward
           TargetGroupArn: !Ref TargetGroup
-      LoadBalancerArn: !Ref ECSApplicationLoadBalancer
+      LoadBalancerArn: !Ref ALB
       Port: 80
       Protocol: HTTP
+
+  HTTPSCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties: 
+      # CertificateAuthorityArn: String
+      # CertificateTransparencyLoggingPreference: String
+      DomainName: dmitri.sandbox.soluzionifutura.it
+      # DomainValidationOptions: 
+      #   - DomainValidationOption
+      # SubjectAlternativeNames: 
+      #   - String
+      ValidationMethod: DNS
+
+  ALBListener443:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties: 
+      DefaultActions: 
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+      LoadBalancerArn: !Ref ALB
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Ref HTTPSCertificate
+  # 
+  # DNSRecord:
+  #   Type: AWS::Route53::RecordSet
+  #   Properties:
+  #     HostedZoneId : !GetAtt ECSApplicationLoadBalancer.CanonicalHostedZoneID
+  #     Name: dmitri.sandbox.soluzionifutura.it 
+  #     ResourceRecords:
+  #     - !GetAtt ECSApplicationLoadBalancer.DNSName
+  #     TTL: 900
+  #     Type: CNAME
 
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties: 
       IpAddressType: ipv4
-      Name: dmitri-target-group
-      Port: 80
+      # Name: dmitri-target-group
+      Port: 3000
       Protocol: HTTP 
       ProtocolVersion: HTTP1
       TargetType: ip
@@ -136,7 +141,7 @@ Resources:
         - Name: containerInsights
           Value: enabled
 
-    DependsOn: ECSApplicationLoadBalancer
+    DependsOn: ALB
 
 
 
@@ -190,9 +195,9 @@ Resources:
     Type: AWS::ECS::Service
     Properties:
       Cluster: !Ref ECSCluster
-      DesiredCount: 2
+      DesiredCount: !Ref pNumberFargateInstances
       LaunchType: FARGATE
-      # EnableExecuteCommand: !Ref pEnableExecute
+      EnableExecuteCommand: !Ref pEnableExecute
       NetworkConfiguration:
         AwsvpcConfiguration:
           AssignPublicIp: DISABLED
@@ -211,6 +216,21 @@ Resources:
 
   ArtifactStoreBucket:
     Type: "AWS::S3::Bucket"
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - BucketKeyEnabled: true
+            ServerSideEncryptionByDefault:
+              KMSMasterKeyID: arn:aws:kms:eu-north-1:861507897222:alias/dmitri-key-parameters-simmetric
+              SSEAlgorithm: aws:kms
+
+
+  # CleanBucket:
+  #   Type: Custom::cleanBucket
+  #   Properties: 
+  #     ServiceToken: arn:aws:lambda:eu-north-1:861507897222:function:dmitri-clean-bucket-before-deletion
+  #     BucketName: !Ref ArtifactStoreBucket
+
 
 
 
@@ -273,7 +293,7 @@ Resources:
 Outputs:
   LoadBalancerDns:
     Description: Load balancer dns name
-    Value: !GetAtt ECSApplicationLoadBalancer.DNSName
+    Value: !GetAtt ALB.DNSName
 
   MysqlUrl:
     Description: Mysql url
