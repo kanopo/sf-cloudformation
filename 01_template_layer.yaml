@@ -56,10 +56,10 @@ Resources:
           FromPort: "80"
           ToPort: "80"
           CidrIp: 0.0.0.0/0
-        # - IpProtocol: tcp
-        #   FromPort: "443"
-        #   ToPort: "443"
-        #   CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: "443"
+          ToPort: "443"
+          CidrIp: 0.0.0.0/0
       VpcId: 
         Fn::ImportValue: !Sub dmitri-vpc
 
@@ -85,29 +85,29 @@ Resources:
       Port: 80
       Protocol: HTTP
 
-  # HTTPSCertificate:
-  #   Type: AWS::CertificateManager::Certificate
-  #   Properties: 
-  #     # CertificateAuthorityArn: String
-  #     # CertificateTransparencyLoggingPreference: String
-  #     DomainName: dmitri.sandbox.soluzionifutura.it
-  #     # DomainValidationOptions: 
-  #     #   - DomainValidationOption
-  #     # SubjectAlternativeNames: 
-  #     #   - String
-  #     ValidationMethod: DNS
-  #
-  # ALBListener443:
-  #   Type: AWS::ElasticLoadBalancingV2::Listener
-  #   Properties: 
-  #     DefaultActions: 
-  #       - Type: forward
-  #         TargetGroupArn: !Ref TargetGroup
-  #     LoadBalancerArn: !Ref ECSApplicationLoadBalancer
-  #     Port: 443
-  #     Protocol: HTTPS
-  #     Certificates:
-  #       - CertificateArn: !Ref HTTPSCertificate
+  HTTPSCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties: 
+      # CertificateAuthorityArn: String
+      # CertificateTransparencyLoggingPreference: String
+      DomainName: dmitri.sandbox.soluzionifutura.it
+      # DomainValidationOptions: 
+      #   - DomainValidationOption
+      # SubjectAlternativeNames: 
+      #   - String
+      ValidationMethod: DNS
+
+  ALBListener443:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties: 
+      DefaultActions: 
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+      LoadBalancerArn: !Ref ALB
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Ref HTTPSCertificate
   # 
   # DNSRecord:
   #   Type: AWS::Route53::RecordSet
