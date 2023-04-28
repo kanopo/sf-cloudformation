@@ -31,6 +31,93 @@ Resources:
         - Fn::ImportValue: !Sub dmitri-private-subnet-02
 
 
+
+
+  KMSKey:
+    Type: AWS::KMS::Key
+    Properties: 
+      Description: Key used for encrypt and decrypt s3 buckets and rds dbs in this cloudformation stack
+      Enabled: true
+      EnableKeyRotation: false
+      KeyPolicy: 
+        {
+        "Id": "key-consolepolicy-3",
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "Enable IAM User Permissions",
+                "Effect": "Allow",
+                "Principal": {
+                    "AWS": "arn:aws:iam::861507897222:root"
+                },
+                "Action": "kms:*",
+                "Resource": "*"
+            },
+            {
+                "Sid": "Allow access for Key Administrators",
+                "Effect": "Allow",
+                "Principal": {
+                    "AWS": "arn:aws:iam::861507897222:role/ecsTaskExecutionRole"
+                },
+                "Action": [
+                    "kms:Create*",
+                    "kms:Describe*",
+                    "kms:Enable*",
+                    "kms:List*",
+                    "kms:Put*",
+                    "kms:Update*",
+                    "kms:Revoke*",
+                    "kms:Disable*",
+                    "kms:Get*",
+                    "kms:Delete*",
+                    "kms:TagResource",
+                    "kms:UntagResource",
+                    "kms:ScheduleKeyDeletion",
+                    "kms:CancelKeyDeletion"
+                ],
+                "Resource": "*"
+            },
+            {
+                "Sid": "Allow use of the key",
+                "Effect": "Allow",
+                "Principal": {
+                    "AWS": "arn:aws:iam::861507897222:role/ecsTaskExecutionRole"
+                },
+                "Action": [
+                    "kms:Encrypt",
+                    "kms:Decrypt",
+                    "kms:ReEncrypt*",
+                    "kms:GenerateDataKey*",
+                    "kms:DescribeKey"
+                ],
+                "Resource": "*"
+            },
+            {
+                "Sid": "Allow attachment of persistent resources",
+                "Effect": "Allow",
+                "Principal": {
+                    "AWS": "arn:aws:iam::861507897222:role/ecsTaskExecutionRole"
+                },
+                "Action": [
+                    "kms:CreateGrant",
+                    "kms:ListGrants",
+                    "kms:RevokeGrant"
+                ],
+                "Resource": "*",
+                "Condition": {
+                    "Bool": {
+                        "kms:GrantIsForAWSResource": "true"
+                    }
+                }
+            }
+          ]
+        }
+      KeySpec: SYMMETRIC_DEFAULT
+      KeyUsage: ENCRYPT_DECRYPT 
+      # MultiRegion: Boolean
+      # PendingWindowInDays: Integer
+
+
   MyDB:
     Type: AWS::RDS::DBInstance
     Properties:
@@ -43,7 +130,7 @@ Resources:
       DBSubnetGroupName: !Ref DBSubnetGroup
       VPCSecurityGroups:
         - Fn::ImportValue: !Sub dmitri-sg-db
-      KmsKeyId: arn:aws:kms:eu-north-1:861507897222:alias/dmitri-key-parameters-simmetric
+      KmsKeyId: !GetAtt KMSKey.Arn
       StorageEncrypted: true
 
 
@@ -67,7 +154,7 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties: 
       IpAddressType: ipv4
-      Name: dmitri-load-balancer
+      # Name: dmitri-load-balancer
       Scheme: internet-facing
       SecurityGroups: 
         - !Ref SGLoadBalancer
@@ -108,14 +195,14 @@ Resources:
       Protocol: HTTPS
       Certificates:
         - CertificateArn: !Ref HTTPSCertificate
-  # 
+
   # DNSRecord:
   #   Type: AWS::Route53::RecordSet
   #   Properties:
-  #     HostedZoneId : !GetAtt ECSApplicationLoadBalancer.CanonicalHostedZoneID
+  #     HostedZoneId : !GetAtt ALB.CanonicalHostedZoneID
   #     Name: dmitri.sandbox.soluzionifutura.it 
   #     ResourceRecords:
-  #     - !GetAtt ECSApplicationLoadBalancer.DNSName
+  #     - !GetAtt ALB.DNSName
   #     TTL: 900
   #     Type: CNAME
 
@@ -136,7 +223,7 @@ Resources:
     Properties: 
       CapacityProviders: 
         - FARGATE
-      ClusterName: dmitri-cluster
+      # ClusterName: dmitri-cluster
       ClusterSettings: 
         - Name: containerInsights
           Value: enabled
@@ -221,7 +308,7 @@ Resources:
         ServerSideEncryptionConfiguration:
           - BucketKeyEnabled: true
             ServerSideEncryptionByDefault:
-              KMSMasterKeyID: arn:aws:kms:eu-north-1:861507897222:alias/dmitri-key-parameters-simmetric
+              KMSMasterKeyID: !GetAtt KMSKey.Arn
               SSEAlgorithm: aws:kms
 
 
