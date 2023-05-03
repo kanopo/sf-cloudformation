@@ -5,6 +5,10 @@ Parameters:
     Description: Number of fargate instances
     Type: Number
     Default: 1
+  pDatabaseUser:
+    Description: Username used for accessing database
+    Type: String
+    Default: node
   pEnableExecute:
     Description: Enable access to FARGATE containers
     Type: String
