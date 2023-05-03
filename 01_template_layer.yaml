@@ -39,7 +39,6 @@ Resources:
         SecretStringTemplate: !Sub '{"username": "${pDatabaseUser}"}'
         PasswordLength: 30
         ExcludeCharacters: '"@/\'
-      # Name: DBCredentials
 
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
@@ -133,8 +132,6 @@ Resources:
         }
       KeySpec: SYMMETRIC_DEFAULT
       KeyUsage: ENCRYPT_DECRYPT 
-      # MultiRegion: Boolean
-      # PendingWindowInDays: Integer
 
 
   MyDB:
@@ -174,7 +171,6 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties: 
       IpAddressType: ipv4
-      # Name: dmitri-load-balancer
       Scheme: internet-facing
       SecurityGroups: 
         - !Ref SGLoadBalancer
@@ -290,6 +286,10 @@ Resources:
               Value: 3306
             - Name: DB_USER
               Value: !Sub '{{resolve:secretsmanager:${DBCredentials}:SecretString:username}}' 
+            # TODO: per rendere il bucket dove vengono salvate le immagini e i file più indipendente
+            # - Name: BUCKET_NAME
+            #   Value: asdasd
+
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -334,12 +334,11 @@ Resources:
               SSEAlgorithm: aws:kms
 
 
-  # CleanBucket:
-  #   Type: Custom::cleanBucket
-  #   Properties: 
-  #     ServiceToken: !GetAtt LFCleanBucket.Arn
-  #     BucketName: !Ref ArtifactStoreBucket
-
+  CleanBucket:
+    Type: Custom::cleanBucket
+    Properties: 
+      ServiceToken: !GetAtt LFCleanBucket.Arn
+      BucketName: !Ref ArtifactStoreBucket
 
   LFCleanBucket:
     Type: AWS::Lambda::Function
@@ -347,8 +346,12 @@ Resources:
       Runtime: nodejs18.x
       Handler: index.handler
       Code:
+        # TODO: penso che l'errore sia nel responce della chiamata fatta alla lambda
         ZipFile: |
+          //const { S3Client, ListObjectsCommand, DeleteObjectsCommand } = require('aws-sdk/clients/s3') 
           const { S3Client, ListObjectsCommand, DeleteObjectsCommand } = require ("@aws-sdk/client-s3");
+          const response = require('cfn-response')
+
 
           exports.handler = async (event, context) => {
             if (event.RequestType === "Delete") {
@@ -359,21 +362,20 @@ Resources:
                 Bucket: bucketName
               }))
 
-              let objectskey = listObjectsResponce.map(item => item.key)
+              let objectskey = listObjectsResponce.Contents.map(item => item.key)
 
-
-              let deleteObjectsResponce = await client.send(new DeleteObjectsCommand({
-                Bucket: bucketName,
-                Delete: {
-                  Objects: objectskey
-                }
-              }))
+              //let deleteObjectsResponce = await client.send(new DeleteObjectsCommand({
+              //  Bucket: bucketName,
+              //  Delete: {
+              //    Objects: objectskey
+              //  }
+              //}))
               
-              return "SUCCESS"
+              response.send(event, context, "SUCCESS")
             }
             else
             {
-              return "SUCCESS"
+              response.send(event, context, "FAILED")
             }
           };  
 
@@ -381,6 +383,14 @@ Resources:
       KmsKeyArn: !GetAtt KMSKey.Arn
       Role: arn:aws:iam::861507897222:role/dmitriLambdaRoleDeleteS3Object 
       Timeout: 10
+
+  # LFTimer:
+  #   Type: AWS::Lambda::EventInvokeConfig
+  #   Properties: 
+  #     FunctionName: !Ref LFCleanBucket 
+  #     MaximumEventAgeInSeconds: 300
+  #     MaximumRetryAttempts: 2
+  #     Qualifier: Latest
 
   CodePipeLine:
     Type: "AWS::CodePipeline::Pipeline"
@@ -448,5 +458,5 @@ Outputs:
           - !Ref pDNSName
 
   MysqlUrl:
-    Description: Mysql url
+    Description: Mysql URI
     Value: !GetAtt MyDB.Endpoint.Address 

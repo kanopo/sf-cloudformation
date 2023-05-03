@@ -1,0 +1,11 @@
+{
+  "RequestType": "Delete",
+  "ResponseURL": "http://pre-signed-S3-url-for-response",
+  "StackId": "arn:aws:cloudformation:us-east-1:123456789012:stack/MyStack/guid",
+  "RequestId": "unique id for this create request",
+  "ResourceType": "Custom::TestResource",
+  "LogicalResourceId": "MyTestResource",
+  "ResourceProperties": {
+    "BucketName": "dmitri-scalable-layer-artifactstorebucket-16ow7m44ou40a"
+  }
+}

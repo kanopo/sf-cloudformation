@@ -1,5 +1,0 @@
-{
-    "yaml.schemas": {
-        "https://raw.githubusercontent.com/awslabs/goformation/master/schema/cloudformation.schema.json": "file:///home/me/Documents/soluzionifutura/sf-cloudformation/01_template_layer.yaml"
-    }
-}
