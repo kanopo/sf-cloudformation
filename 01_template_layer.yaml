@@ -1,4 +1,5 @@
 Description: "Load balancer template"
+
 Parameters:
   pNumberFargateInstances:
     Description: Number of fargate instances
@@ -21,7 +22,29 @@ Parameters:
       - false
 
 
+  pHostedZoneId:
+    Description: Hosted zone id for route53 association
+    Type: String
+    Default: Z05711693JWUSZY3QSZ10
+
+  pDNSName:
+    Description: DNS name
+    Type: String
+    Default: dmitri.sandbox.soluzionifutura.it
+
+
 Resources:
+  DBCredentials:
+    Type: AWS::SecretsManager::Secret
+    Properties: 
+      Description: Auto generated password for DB
+      GenerateSecretString: 
+        GenerateStringKey: "password"
+        SecretStringTemplate: !Sub '{"username": "${pDatabaseUser}"}'
+        PasswordLength: 30
+        ExcludeCharacters: '"@/\'
+      Name: DBCredentials
+
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
@@ -121,11 +144,12 @@ Resources:
   MyDB:
     Type: AWS::RDS::DBInstance
     Properties:
+      StorageType: gp3
       AllocatedStorage: 20
       DBInstanceClass: db.t3.small
       Engine: MySQL
-      MasterUsername: !Ref pDatabaseUser
-      MasterUserPassword: !Ref pDatabasePassword
+      MasterUsername: !Sub '{{resolve:secretsmanager:${DBCredentials}:SecretString:username}}' 
+      MasterUserPassword: !Sub '{{resolve:secretsmanager:${DBCredentials}:SecretString:password}}'  
       NetworkType: ipv4
       DBSubnetGroupName: !Ref DBSubnetGroup
       VPCSecurityGroups:
@@ -137,7 +161,7 @@ Resources:
   SGLoadBalancer:
     Type: AWS::EC2::SecurityGroup
     Properties: 
-      GroupDescription: Allow access to load balancer from port 3000
+      GroupDescription: Allow access to load balancer from ports 80 and 443
       SecurityGroupIngress: 
         - IpProtocol: tcp
           FromPort: "80"
@@ -162,6 +186,8 @@ Resources:
         - Fn::ImportValue: !Sub dmitri-public-subnet-01
         - Fn::ImportValue: !Sub dmitri-public-subnet-02
 
+
+  # TODO: mettere redirect a 443 al posto di forward
   ALBListener80:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties: 
@@ -177,7 +203,7 @@ Resources:
     Properties: 
       # CertificateAuthorityArn: String
       # CertificateTransparencyLoggingPreference: String
-      DomainName: dmitri.sandbox.soluzionifutura.it
+      DomainName: !Ref pDNSName
       # DomainValidationOptions: 
       #   - DomainValidationOption
       # SubjectAlternativeNames: 
@@ -196,21 +222,20 @@ Resources:
       Certificates:
         - CertificateArn: !Ref HTTPSCertificate
 
-  # DNSRecord:
-  #   Type: AWS::Route53::RecordSet
-  #   Properties:
-  #     HostedZoneId : !GetAtt ALB.CanonicalHostedZoneID
-  #     Name: dmitri.sandbox.soluzionifutura.it 
-  #     ResourceRecords:
-  #     - !GetAtt ALB.DNSName
-  #     TTL: 900
-  #     Type: CNAME
+  DNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId : !Ref pHostedZoneId
+      Name: !Ref pDNSName
+      ResourceRecords:
+      - !GetAtt ALB.DNSName
+      TTL: 900
+      Type: CNAME
 
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties: 
       IpAddressType: ipv4
-      # Name: dmitri-target-group
       Port: 3000
       Protocol: HTTP 
       ProtocolVersion: HTTP1
@@ -223,7 +248,6 @@ Resources:
     Properties: 
       CapacityProviders: 
         - FARGATE
-      # ClusterName: dmitri-cluster
       ClusterSettings: 
         - Name: containerInsights
           Value: enabled
@@ -263,11 +287,11 @@ Resources:
             - Name: DB_HOST
               Value: !GetAtt MyDB.Endpoint.Address
             - Name: DB_PASSWORD
-              Value: !Ref pDatabasePassword
+              Value: !Sub '{{resolve:secretsmanager:${DBCredentials}:SecretString:password}}' 
             - Name: DB_PORT
               Value: 3306
             - Name: DB_USER
-              Value: !Ref pDatabaseUser
+              Value: !Sub '{{resolve:secretsmanager:${DBCredentials}:SecretString:username}}' 
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -317,6 +341,57 @@ Resources:
   #   Properties: 
   #     ServiceToken: arn:aws:lambda:eu-north-1:861507897222:function:dmitri-clean-bucket-before-deletion
   #     BucketName: !Ref ArtifactStoreBucket
+
+
+  LFCleanBucket:
+    Type: AWS::Lambda::Function
+    Properties: 
+      # Architectures: 
+      #   - String
+      Code: 
+        ZipFile: |
+          const { S3Client } = require("@aws-sdk/client-s3");
+          var response = require('cfn-responce')
+
+          export const handler = (event, context) => {
+            console.log(event)
+            response.send(event, context, "SUCCESS", {})
+          }
+
+
+      # CodeSigningConfigArn: String
+      # DeadLetterConfig: 
+      #   DeadLetterConfig
+      Description: String
+      # Environment: 
+      #   Environment
+      # EphemeralStorage: 
+      #   EphemeralStorage
+      # FileSystemConfigs: 
+      #   - FileSystemConfig
+      # FunctionName: String
+      Handler: index.handler
+      # ImageConfig: 
+      #   ImageConfig
+      KmsKeyArn: !GetAtt KMSKey.Arn
+      # Layers: 
+      #   - String
+      # MemorySize: Integer
+      # PackageType: zip
+      # ReservedConcurrentExecutions: Integer
+      Role: arn:aws:iam::861507897222:role/dmitriLambdaRoleDeleteS3Object 
+      Runtime: nodejs18.x 
+      # RuntimeManagementConfig: 
+      #   RuntimeManagementConfig
+      # SnapStart: 
+      #   SnapStart
+      # Tags: 
+      #   - Tag
+      Timeout: 10
+      # TracingConfig: 
+      #   TracingConfig
+      # VpcConfig: 
+      #   VpcConfig
 
 
 
@@ -381,6 +456,9 @@ Outputs:
   LoadBalancerDns:
     Description: Load balancer dns name
     Value: !GetAtt ALB.DNSName
+  GeneratedValues:
+    Value: !Sub '{{resolve:secretsmanager:${DBCredentials}:SecretString:username}}'
+    # Value: '{{resolve:secretsmanager:arn:aws:secretsmanager:eu-north-1:861507897222:secret:DBCredentials-EiK4Zz:SecretString:username}}'
 
   MysqlUrl:
     Description: Mysql url
