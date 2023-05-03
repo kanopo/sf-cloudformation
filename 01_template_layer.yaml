@@ -337,62 +337,50 @@ Resources:
   # CleanBucket:
   #   Type: Custom::cleanBucket
   #   Properties: 
-  #     ServiceToken: arn:aws:lambda:eu-north-1:861507897222:function:dmitri-clean-bucket-before-deletion
+  #     ServiceToken: !GetAtt LFCleanBucket.Arn
   #     BucketName: !Ref ArtifactStoreBucket
 
 
   LFCleanBucket:
     Type: AWS::Lambda::Function
-    Properties: 
-      # Architectures: 
-      #   - String
-      Code: 
-        ZipFile: |
-          const { S3Client } = require("@aws-sdk/client-s3");
-          var response = require('cfn-responce')
-
-          export const handler = (event, context) => {
-            console.log(event)
-            response.send(event, context, "SUCCESS", {})
-          }
-
-
-      # CodeSigningConfigArn: String
-      # DeadLetterConfig: 
-      #   DeadLetterConfig
-      Description: String
-      # Environment: 
-      #   Environment
-      # EphemeralStorage: 
-      #   EphemeralStorage
-      # FileSystemConfigs: 
-      #   - FileSystemConfig
-      # FunctionName: String
+    Properties:
+      Runtime: nodejs18.x
       Handler: index.handler
-      # ImageConfig: 
-      #   ImageConfig
+      Code:
+        ZipFile: |
+          const { S3Client, ListObjectsCommand, DeleteObjectsCommand } = require ("@aws-sdk/client-s3");
+
+          exports.handler = async (event, context) => {
+            if (event.RequestType === "Delete") {
+              let bucketName = event.ResourceProperties.BucketName;
+
+              let client = new S3Client({ region: "eu-north-1" });
+              let listObjectsResponce = await client.send(new ListObjectsCommand({
+                Bucket: bucketName
+              }))
+
+              let objectskey = listObjectsResponce.map(item => item.key)
+
+
+              let deleteObjectsResponce = await client.send(new DeleteObjectsCommand({
+                Bucket: bucketName,
+                Delete: {
+                  Objects: objectskey
+                }
+              }))
+              
+              return "SUCCESS"
+            }
+            else
+            {
+              return "SUCCESS"
+            }
+          };  
+
+
       KmsKeyArn: !GetAtt KMSKey.Arn
-      # Layers: 
-      #   - String
-      # MemorySize: Integer
-      # PackageType: zip
-      # ReservedConcurrentExecutions: Integer
       Role: arn:aws:iam::861507897222:role/dmitriLambdaRoleDeleteS3Object 
-      Runtime: nodejs18.x 
-      # RuntimeManagementConfig: 
-      #   RuntimeManagementConfig
-      # SnapStart: 
-      #   SnapStart
-      # Tags: 
-      #   - Tag
       Timeout: 10
-      # TracingConfig: 
-      #   TracingConfig
-      # VpcConfig: 
-      #   VpcConfig
-
-
-
 
   CodePipeLine:
     Type: "AWS::CodePipeline::Pipeline"
@@ -452,11 +440,12 @@ Resources:
 
 Outputs:
   LoadBalancerDns:
-    Description: Load balancer dns name
-    Value: !GetAtt ALB.DNSName
-  GeneratedValues:
-    Value: !Sub '{{resolve:secretsmanager:${DBCredentials}:SecretString:username}}'
-    # Value: '{{resolve:secretsmanager:arn:aws:secretsmanager:eu-north-1:861507897222:secret:DBCredentials-EiK4Zz:SecretString:username}}'
+    Description: EndPoint URI
+    Value: 
+      !Join
+        - ''
+        - - https://
+          - !Ref pDNSName
 
   MysqlUrl:
     Description: Mysql url
