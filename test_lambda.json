@@ -6,6 +6,6 @@
   "ResourceType": "Custom::TestResource",
   "LogicalResourceId": "MyTestResource",
   "ResourceProperties": {
-    "BucketName": "dmitri-scalable-layer-artifactstorebucket-16ow7m44ou40a"
+    "BucketName": "dmitri-scalable-layer-artifactstorebucket-3gleqxd2g9d2"
   }
 }

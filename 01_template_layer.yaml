@@ -334,11 +334,11 @@ Resources:
               SSEAlgorithm: aws:kms
 
 
-  CleanBucket:
-    Type: Custom::cleanBucket
-    Properties: 
-      ServiceToken: !GetAtt LFCleanBucket.Arn
-      BucketName: !Ref ArtifactStoreBucket
+  # CleanBucket:
+  #   Type: Custom::cleanBucket
+  #   Properties: 
+  #     ServiceToken: !GetAtt LFCleanBucket.Arn
+  #     BucketName: !Ref ArtifactStoreBucket
 
   LFCleanBucket:
     Type: AWS::Lambda::Function
@@ -346,43 +346,75 @@ Resources:
       Runtime: nodejs18.x
       Handler: index.handler
       Code:
-        # TODO: penso che l'errore sia nel responce della chiamata fatta alla lambda
         ZipFile: |
-          //const { S3Client, ListObjectsCommand, DeleteObjectsCommand } = require('aws-sdk/clients/s3') 
-          const { S3Client, ListObjectsCommand, DeleteObjectsCommand } = require ("@aws-sdk/client-s3");
-          const response = require('cfn-response')
 
+          const { S3Client, ListObjectsCommand, DeleteObjectsCommand } = require("@aws-sdk/client-s3")
 
-          exports.handler = async (event, context) => {
-            if (event.RequestType === "Delete") {
-              let bucketName = event.ResourceProperties.BucketName;
+          exports.handler = async (event) => {
 
-              let client = new S3Client({ region: "eu-north-1" });
-              let listObjectsResponce = await client.send(new ListObjectsCommand({
+            if (event.RequestType == "Delete") {
+
+              let bucketName = "dmitri-scalable-layer-artifactstorebucket-3gleqxd2g9d2";
+              let client = new S3Client({
+                region: "eu-north-1"
+              });
+
+              let listObjectsInBucket = await client.send(new ListObjectsCommand({
                 Bucket: bucketName
               }))
 
-              let objectskey = listObjectsResponce.Contents.map(item => item.key)
+              let metadaRead = listObjectsInBucket.$metadata
+              let bucketContent = listObjectsInBucket.Contents
 
-              //let deleteObjectsResponce = await client.send(new DeleteObjectsCommand({
-              //  Bucket: bucketName,
-              //  Delete: {
-              //    Objects: objectskey
-              //  }
-              //}))
+              let deleteObject = await client.send(new DeleteObjectsCommand({
+                Bucket: bucketName,
+                Delete: {
+                  Objects: bucketContent
+                }
+              }))
+
+              let metadaDelete = deleteObject.$metadata
+              console.log(metadaDelete)
+
+              return {
+                statusCode: metadaDelete.httpStatusCode,
+                body: JSON.stringify("Deletion completed")
+              }
+            } else {
               
-              response.send(event, context, "SUCCESS")
+              return {
+                statusCode: 200,
+                body: JSON.stringify("non delete completed")
+              }
             }
-            else
-            {
-              response.send(event, context, "FAILED")
-            }
-          };  
+          }
+
 
 
       KmsKeyArn: !GetAtt KMSKey.Arn
       Role: arn:aws:iam::861507897222:role/dmitriLambdaRoleDeleteS3Object 
       Timeout: 10
+      VpcConfig: 
+        SecurityGroupIds:
+          - !Ref SGLambda
+        SubnetIds:
+          - Fn::ImportValue: !Sub dmitri-private-subnet-01
+          - Fn::ImportValue: !Sub dmitri-private-subnet-02
+
+
+
+  SGLambda:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupDescription: Security group used as placeholder for lambda function
+      # SecurityGroupEgress: 
+      #   - Egress
+      # SecurityGroupIngress: 
+      #   - Ingress
+      # Tags: 
+      #   - Tag
+      VpcId: 
+        Fn::ImportValue: !Sub dmitri-vpc
 
   # LFTimer:
   #   Type: AWS::Lambda::EventInvokeConfig
