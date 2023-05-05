@@ -1,4 +1,7 @@
 Description: "Load balancer template"
+# TODO:
+#   - aggiungere il selettore delle repo git nel template
+#   - aggiungere la creazione di ogni role e policy
 
 Parameters:
   pNumberFargateInstances:
@@ -334,131 +337,95 @@ Resources:
               SSEAlgorithm: aws:kms
 
 
-  # CleanBucket:
-  #   Type: Custom::cleanBucket
-  #   Properties: 
-  #     ServiceToken: !Join
-  #       - ''
-  #       - - 'arn:aws:lambda:'
-  #         - !Ref 'AWS::Region'
-  #         - ':'
-  #         - !Ref 'AWS::AccountId'
-  #         - ':function:'
-  #         - !Ref LFCleanBucket     
-  #     BucketName: !Ref ArtifactStoreBucket
+  CleanBucket:
+    Type: Custom::cleanBucket
+    Properties: 
+      ServiceToken: !GetAtt LFCleanBucket.Arn
+      BucketName: !Ref ArtifactStoreBucket
 
   LFCleanBucket:
     Type: AWS::Lambda::Function
     Properties:
-      Runtime: nodejs18.x
+      Runtime: nodejs16.x
       Handler: index.handler
       Code:
         ZipFile: |
-
-          const { S3Client, ListObjectsCommand, DeleteObjectsCommand } = require("@aws-sdk/client-s3")
+          const S3 = require('aws-sdk/clients/s3');
           const response = require('cfn-response')
 
-          exports.handler = async (event, context) => {
+          exports.handler = (event, context) => {
 
             if (event.RequestType == "Delete") {
+              const bucketName = event.ResourceProperties.BucketName;
 
               try {
-                var bucketName = event.ResourceProperties.BucketName;
-
-              } catch (e) {
-                // failed readin bucket name
-                response.send(event, context, "FAILED")
-                return
-              }
-
-              try {
-                var client = new S3Client({
+                var s3 = new S3({
                   region: "eu-north-1"
                 });
 
               } catch (e) {
 
-                // failed initializing bucket
-                response.send(event, context, "FAILED")
-                return
+                return response.send(event, context, response.FAILED, { body: e })
               }
 
-              try {
-                var listObjectsInBucket = await client.send(new ListObjectsCommand({
-                  Bucket: bucketName
-                }))
+              s3.listObjects({
+                Bucket: bucketName,
+              })
+                .then((res) => {
 
-              } catch (e) {
-
-                // failed requesting list of object inside the bucket
-                response.send(event, context, "FAILED")
-                return
-              }
-
-              let bucketContent = listObjectsInBucket.Contents
-
-              try {
-                var deleteObject = await client.send(new DeleteObjectsCommand({
-                  Bucket: bucketName,
-                  Delete: {
-                    Objects: bucketContent
-                  }
-                }))
-
-              } catch (e) {
-
-                // failed deleting bucket content
-                response.send(event, context, "FAILED")
-                return
-              }
-
-              let metadaDelete = deleteObject.$metadata
-
-              // success deleting bucket content
-              response.send(event, context, "SUCCESS")
-              return
-            } else {
-
-              // return success for all task that are not 'Delete'
-              response.send(event, context, "SUCCESS")
-              return
+                  return s3.deleteObjects({
+                    Bucket: bucketName,
+                    Delete: {
+                      Objects: res.Contents
+                    }
+                  })
+                })
+                .then((res) => {
+                  return response.send(event, context, response.SUCCESS, { body: res })
+                })
+                .catch((err) => {
+                  return response.send(event, context, response.FAILED, { body: err })
+                })
+            } else if (event.RequestType == "Update") {
+              return response.send(event, context, response.SUCCESS, {
+                body: "update"
+              })
+            } else if (event.RequestType == "Create") {
+              return response.send(event, context, response.SUCCESS, {
+                body: "create"
+              })
             }
           }
 
 
-
       KmsKeyArn: !GetAtt KMSKey.Arn
       Role: arn:aws:iam::861507897222:role/dmitriLambdaRoleDeleteS3Object 
-      Timeout: 10
-      VpcConfig: 
-        SecurityGroupIds:
-          - !Ref SGLambda
-        SubnetIds:
-          - Fn::ImportValue: !Sub dmitri-private-subnet-01
-          - Fn::ImportValue: !Sub dmitri-private-subnet-02
-
-
-
-  SGLambda:
-    Type: AWS::EC2::SecurityGroup
-    Properties: 
-      GroupDescription: Security group used as placeholder for lambda function
-      # SecurityGroupEgress: 
-      #   - Egress
-      # SecurityGroupIngress: 
-      #   - Ingress
-      # Tags: 
-      #   - Tag
-      VpcId: 
-        Fn::ImportValue: !Sub dmitri-vpc
-
-  # LFTimer:
-  #   Type: AWS::Lambda::EventInvokeConfig
+      Timeout: 60
+  #     VpcConfig: 
+  #       SecurityGroupIds:
+  #         - !Ref SGLambda
+  #       SubnetIds:
+  #         - Fn::ImportValue: !Sub dmitri-private-subnet-01
+  #         - Fn::ImportValue: !Sub dmitri-private-subnet-02
+  #
+  #
+  #
+  # SGLambda:
+  #   Type: AWS::EC2::SecurityGroup
   #   Properties: 
-  #     FunctionName: !Ref LFCleanBucket 
-  #     MaximumEventAgeInSeconds: 300
-  #     MaximumRetryAttempts: 2
-  #     Qualifier: Latest
+  #     GroupDescription: Security group used as placeholder for lambda function
+  #     # SecurityGroupEgress: 
+  #     #   - Egress
+  #     SecurityGroupIngress: 
+  #       - IpProtocol: -1
+  #         FromPort: -1
+  #         ToPort: -1
+  #         CidrIp:
+  #           Fn::ImportValue: !Sub dmitri-vpc-cidr
+  #     VpcId: 
+  #       Fn::ImportValue: !Sub dmitri-vpc
+
+
 
   CodePipeLine:
     Type: "AWS::CodePipeline::Pipeline"
