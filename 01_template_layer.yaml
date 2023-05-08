@@ -1,4 +1,8 @@
 Description: "Load balancer template"
+# TODO:
+#   - aggiungere il selettore delle repo git nel template
+#   - aggiungere la creazione di ogni role e policy
+
 Parameters:
   pNumberFargateInstances:
     Description: Number of fargate instances
@@ -8,10 +12,6 @@ Parameters:
     Description: Username used for accessing database
     Type: String
     Default: node
-  pDatabasePassword:
-    Description: Password used for accessing database
-    Type: String
-    Default: password
   pEnableExecute:
     Description: Enable access to FARGATE containers
     Type: String
@@ -21,7 +21,28 @@ Parameters:
       - false
 
 
+  pHostedZoneId:
+    Description: Hosted zone id for route53 association
+    Type: String
+    Default: Z05711693JWUSZY3QSZ10
+
+  pDNSName:
+    Description: DNS name
+    Type: String
+    Default: dmitri.sandbox.soluzionifutura.it
+
+
 Resources:
+  DBCredentials:
+    Type: AWS::SecretsManager::Secret
+    Properties: 
+      Description: Auto generated password for DB
+      GenerateSecretString: 
+        GenerateStringKey: "password"
+        SecretStringTemplate: !Sub '{"username": "${pDatabaseUser}"}'
+        PasswordLength: 30
+        ExcludeCharacters: '"@/\'
+
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
@@ -114,18 +135,17 @@ Resources:
         }
       KeySpec: SYMMETRIC_DEFAULT
       KeyUsage: ENCRYPT_DECRYPT 
-      # MultiRegion: Boolean
-      # PendingWindowInDays: Integer
 
 
   MyDB:
     Type: AWS::RDS::DBInstance
     Properties:
+      StorageType: gp3
       AllocatedStorage: 20
       DBInstanceClass: db.t3.small
       Engine: MySQL
-      MasterUsername: !Ref pDatabaseUser
-      MasterUserPassword: !Ref pDatabasePassword
+      MasterUsername: !Sub '{{resolve:secretsmanager:${DBCredentials}:SecretString:username}}' 
+      MasterUserPassword: !Sub '{{resolve:secretsmanager:${DBCredentials}:SecretString:password}}'  
       NetworkType: ipv4
       DBSubnetGroupName: !Ref DBSubnetGroup
       VPCSecurityGroups:
@@ -137,7 +157,7 @@ Resources:
   SGLoadBalancer:
     Type: AWS::EC2::SecurityGroup
     Properties: 
-      GroupDescription: Allow access to load balancer from port 3000
+      GroupDescription: Allow access to load balancer from ports 80 and 443
       SecurityGroupIngress: 
         - IpProtocol: tcp
           FromPort: "80"
@@ -154,7 +174,6 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties: 
       IpAddressType: ipv4
-      # Name: dmitri-load-balancer
       Scheme: internet-facing
       SecurityGroups: 
         - !Ref SGLoadBalancer
@@ -162,27 +181,24 @@ Resources:
         - Fn::ImportValue: !Sub dmitri-public-subnet-01
         - Fn::ImportValue: !Sub dmitri-public-subnet-02
 
+
+
   ALBListener80:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties: 
       DefaultActions: 
-        - Type: forward
-          TargetGroupArn: !Ref TargetGroup
+        - Type: redirect
+          RedirectConfig:
+            Protocol: "HTTPS"
+            Port: 443
+            Host: "#{host}"
+            Path: "/#{path}"
+            Query: "#{query}"
+            StatusCode: "HTTP_301" 
       LoadBalancerArn: !Ref ALB
       Port: 80
       Protocol: HTTP
 
-  HTTPSCertificate:
-    Type: AWS::CertificateManager::Certificate
-    Properties: 
-      # CertificateAuthorityArn: String
-      # CertificateTransparencyLoggingPreference: String
-      DomainName: dmitri.sandbox.soluzionifutura.it
-      # DomainValidationOptions: 
-      #   - DomainValidationOption
-      # SubjectAlternativeNames: 
-      #   - String
-      ValidationMethod: DNS
 
   ALBListener443:
     Type: AWS::ElasticLoadBalancingV2::Listener
@@ -196,21 +212,27 @@ Resources:
       Certificates:
         - CertificateArn: !Ref HTTPSCertificate
 
-  # DNSRecord:
-  #   Type: AWS::Route53::RecordSet
-  #   Properties:
-  #     HostedZoneId : !GetAtt ALB.CanonicalHostedZoneID
-  #     Name: dmitri.sandbox.soluzionifutura.it 
-  #     ResourceRecords:
-  #     - !GetAtt ALB.DNSName
-  #     TTL: 900
-  #     Type: CNAME
+  HTTPSCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties: 
+      DomainName: !Ref pDNSName
+      ValidationMethod: DNS
+
+
+  DNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId : !Ref pHostedZoneId
+      Name: !Ref pDNSName
+      ResourceRecords:
+      - !GetAtt ALB.DNSName
+      TTL: 900
+      Type: CNAME
 
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties: 
       IpAddressType: ipv4
-      # Name: dmitri-target-group
       Port: 3000
       Protocol: HTTP 
       ProtocolVersion: HTTP1
@@ -223,7 +245,6 @@ Resources:
     Properties: 
       CapacityProviders: 
         - FARGATE
-      # ClusterName: dmitri-cluster
       ClusterSettings: 
         - Name: containerInsights
           Value: enabled
@@ -263,11 +284,15 @@ Resources:
             - Name: DB_HOST
               Value: !GetAtt MyDB.Endpoint.Address
             - Name: DB_PASSWORD
-              Value: !Ref pDatabasePassword
+              Value: !Sub '{{resolve:secretsmanager:${DBCredentials}:SecretString:password}}' 
             - Name: DB_PORT
               Value: 3306
             - Name: DB_USER
-              Value: !Ref pDatabaseUser
+              Value: !Sub '{{resolve:secretsmanager:${DBCredentials}:SecretString:username}}' 
+            # TODO: per rendere il bucket dove vengono salvate le immagini e i file più indipendente
+            # - Name: BUCKET_NAME
+            #   Value: asdasd
+
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -312,12 +337,122 @@ Resources:
               SSEAlgorithm: aws:kms
 
 
-  # CleanBucket:
-  #   Type: Custom::cleanBucket
-  #   Properties: 
-  #     ServiceToken: arn:aws:lambda:eu-north-1:861507897222:function:dmitri-clean-bucket-before-deletion
-  #     BucketName: !Ref ArtifactStoreBucket
+  CleanBucket:
+    Type: Custom::cleanBucket
+    Properties: 
+      ServiceToken: !GetAtt LFCleanBucket.Arn
+      BucketName: !Ref ArtifactStoreBucket
 
+  LFCleanBucket:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: nodejs16.x
+      Handler: index.handler
+      Code:
+        ZipFile: |
+          const S3 = require('aws-sdk/clients/s3');
+          const response = require('cfn-response')
+
+
+
+          exports.handler = (event, context) => {
+
+            setTimeout((event, context) => {
+              console.log("TIMEOUT")
+
+              return response.send(event, context, "FAILED", {
+                body: "Lambda timeouted"
+              })
+
+            }, 1000 * 60) // the value is in milliseconds
+
+
+            if (event.RequestType == "Delete") {
+              const bucketName = event.ResourceProperties.BucketName;
+              try {
+                var s3 = new S3({
+                  //TODO: get region from stack
+                  region: "eu-north-1"
+                });
+              } catch (e) {
+                return response.send(event, context, response.FAILED, { body: e })
+              }
+              s3.listObjects({
+                Bucket: bucketName,
+              }, (err, data) => {
+                if (err) {
+                  console.log(err)
+                  // array lenght 0
+                  return response.send(event, context, response.SUCCESS, { body: err })
+
+
+                }
+                else {
+                  //console.log(data.Contents)
+                  const arrayOfKeys = data.Contents.map(obj => {
+                    return { Key: obj.Key };
+                  });
+
+                  //console.log(arrayOfKeys);
+
+                  s3.deleteObjects({
+                    Bucket: bucketName,
+                    Delete: {
+                      Objects: arrayOfKeys
+                    }
+                  }, (err, data) => {
+                    if (err) {
+                      return response.send(event, context, response.FAILED, { body: "Deletion failed: " + err })
+                    }
+                    else {
+                      return response.send(event, context, response.SUCCESS, { body: "Deletion completed" })
+                    }
+
+                  })
+                }
+              })
+
+            } else if (event.RequestType == "Update") {
+              return response.send(event, context, response.SUCCESS, {
+                body: "update"
+              })
+            } else if (event.RequestType == "Create") {
+              return response.send(event, context, response.SUCCESS, {
+                body: "create"
+              })
+            }
+          }
+
+
+
+
+
+      KmsKeyArn: !GetAtt KMSKey.Arn
+      Role: arn:aws:iam::861507897222:role/dmitriLambdaRoleDeleteS3Object 
+      Timeout: 60
+  #     VpcConfig: 
+  #       SecurityGroupIds:
+  #         - !Ref SGLambda
+  #       SubnetIds:
+  #         - Fn::ImportValue: !Sub dmitri-private-subnet-01
+  #         - Fn::ImportValue: !Sub dmitri-private-subnet-02
+  #
+  #
+  #
+  # SGLambda:
+  #   Type: AWS::EC2::SecurityGroup
+  #   Properties: 
+  #     GroupDescription: Security group used as placeholder for lambda function
+  #     # SecurityGroupEgress: 
+  #     #   - Egress
+  #     SecurityGroupIngress: 
+  #       - IpProtocol: -1
+  #         FromPort: -1
+  #         ToPort: -1
+  #         CidrIp:
+  #           Fn::ImportValue: !Sub dmitri-vpc-cidr
+  #     VpcId: 
+  #       Fn::ImportValue: !Sub dmitri-vpc
 
 
 
@@ -379,9 +514,13 @@ Resources:
 
 Outputs:
   LoadBalancerDns:
-    Description: Load balancer dns name
-    Value: !GetAtt ALB.DNSName
+    Description: EndPoint URI
+    Value: 
+      !Join
+        - ''
+        - - https://
+          - !Ref pDNSName
 
   MysqlUrl:
-    Description: Mysql url
+    Description: Mysql URI
     Value: !GetAtt MyDB.Endpoint.Address 
