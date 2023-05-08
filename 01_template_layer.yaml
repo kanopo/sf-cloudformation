@@ -353,39 +353,65 @@ Resources:
           const S3 = require('aws-sdk/clients/s3');
           const response = require('cfn-response')
 
+
+
           exports.handler = (event, context) => {
+
+            setTimeout((event, context) => {
+              console.log("TIMEOUT")
+
+              return response.send(event, context, "FAILED", {
+                body: "Lambda timeouted"
+              })
+
+            }, 1000 * 60) // the value is in milliseconds
+
 
             if (event.RequestType == "Delete") {
               const bucketName = event.ResourceProperties.BucketName;
-
               try {
                 var s3 = new S3({
+                  //TODO: get region from stack
                   region: "eu-north-1"
                 });
-
               } catch (e) {
-
                 return response.send(event, context, response.FAILED, { body: e })
               }
-
               s3.listObjects({
                 Bucket: bucketName,
-              })
-                .then((res) => {
+              }, (err, data) => {
+                if (err) {
+                  console.log(err)
+                  // array lenght 0
+                  return response.send(event, context, response.SUCCESS, { body: err })
 
-                  return s3.deleteObjects({
+
+                }
+                else {
+                  //console.log(data.Contents)
+                  const arrayOfKeys = data.Contents.map(obj => {
+                    return { Key: obj.Key };
+                  });
+
+                  //console.log(arrayOfKeys);
+
+                  s3.deleteObjects({
                     Bucket: bucketName,
                     Delete: {
-                      Objects: res.Contents
+                      Objects: arrayOfKeys
                     }
+                  }, (err, data) => {
+                    if (err) {
+                      return response.send(event, context, response.FAILED, { body: "Deletion failed: " + err })
+                    }
+                    else {
+                      return response.send(event, context, response.SUCCESS, { body: "Deletion completed" })
+                    }
+
                   })
-                })
-                .then((res) => {
-                  return response.send(event, context, response.SUCCESS, { body: res })
-                })
-                .catch((err) => {
-                  return response.send(event, context, response.FAILED, { body: err })
-                })
+                }
+              })
+
             } else if (event.RequestType == "Update") {
               return response.send(event, context, response.SUCCESS, {
                 body: "update"
@@ -396,6 +422,9 @@ Resources:
               })
             }
           }
+
+
+
 
 
       KmsKeyArn: !GetAtt KMSKey.Arn
