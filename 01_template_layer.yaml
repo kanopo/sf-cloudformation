@@ -251,7 +251,16 @@ Resources:
 
     DependsOn: ALB
 
-
+  # # WARN: WIP
+  # TaskRole: 
+  #   Type: AWS::IAM::Role
+  #   Properties: 
+  #     AssumeRolePolicyDocument: Json
+  #     Description: Allow access to s3 buckets from ecs containers
+  #     ManagedPolicyArns: 
+  #       - String
+  #     Policies: 
+  #       - Policy
 
   ECSTaskDefinition:
     Type: AWS::ECS::TaskDefinition
