@@ -289,15 +289,16 @@ Resources:
               Value: 3306
             - Name: DB_USER
               Value: !Sub '{{resolve:secretsmanager:${DBCredentials}:SecretString:username}}' 
-            # TODO: per rendere il bucket dove vengono salvate le immagini e i file più indipendente
-            # - Name: BUCKET_NAME
-            #   Value: asdasd
+            - Name: BUCKET_NAME
+              Value: !Ref ImageStoreBucket
+            - Name: BUCKET_REGION
+              Value: !Ref AWS::Region
 
           LogConfiguration:
             LogDriver: awslogs
             Options:
               "awslogs-group": "node-ecs"
-              "awslogs-region": "eu-north-1"
+              "awslogs-region": !Ref AWS::Region
               "awslogs-create-group": "true"
               "awslogs-stream-prefix": "dmitri"
 
@@ -336,12 +337,29 @@ Resources:
               KMSMasterKeyID: !GetAtt KMSKey.Arn
               SSEAlgorithm: aws:kms
 
+  ImageStoreBucket:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - BucketKeyEnabled: true
+            ServerSideEncryptionByDefault:
+              KMSMasterKeyID: !GetAtt KMSKey.Arn
+              SSEAlgorithm: aws:kms
 
-  CleanBucket:
+  CleanArtifactBucket:
     Type: Custom::cleanBucket
     Properties: 
       ServiceToken: !GetAtt LFCleanBucket.Arn
       BucketName: !Ref ArtifactStoreBucket
+      Region: !Ref AWS::Region
+
+  CleanImageBucket:
+    Type: Custom::cleanBucket
+    Properties: 
+      ServiceToken: !GetAtt LFCleanBucket.Arn
+      BucketName: !Ref ImageStoreBucket
+      Region: !Ref AWS::Region
 
   LFCleanBucket:
     Type: AWS::Lambda::Function
@@ -369,10 +387,12 @@ Resources:
 
             if (event.RequestType == "Delete") {
               const bucketName = event.ResourceProperties.BucketName;
+              const region = event.ResourceProperties.Region;
+
               try {
                 var s3 = new S3({
                   //TODO: get region from stack
-                  region: "eu-north-1"
+                  region: region
                 });
               } catch (e) {
                 return response.send(event, context, response.FAILED, { body: e })
@@ -430,29 +450,6 @@ Resources:
       KmsKeyArn: !GetAtt KMSKey.Arn
       Role: arn:aws:iam::861507897222:role/dmitriLambdaRoleDeleteS3Object 
       Timeout: 60
-  #     VpcConfig: 
-  #       SecurityGroupIds:
-  #         - !Ref SGLambda
-  #       SubnetIds:
-  #         - Fn::ImportValue: !Sub dmitri-private-subnet-01
-  #         - Fn::ImportValue: !Sub dmitri-private-subnet-02
-  #
-  #
-  #
-  # SGLambda:
-  #   Type: AWS::EC2::SecurityGroup
-  #   Properties: 
-  #     GroupDescription: Security group used as placeholder for lambda function
-  #     # SecurityGroupEgress: 
-  #     #   - Egress
-  #     SecurityGroupIngress: 
-  #       - IpProtocol: -1
-  #         FromPort: -1
-  #         ToPort: -1
-  #         CidrIp:
-  #           Fn::ImportValue: !Sub dmitri-vpc-cidr
-  #     VpcId: 
-  #       Fn::ImportValue: !Sub dmitri-vpc
 
 
 
