@@ -14,20 +14,18 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+
       - name: "Checkout node18 branch"
         uses: actions/checkout@v3
         with:
           ref: node18.x
       
-      - name: "Configure AWS credentials"
-        uses: aws-actions/configure-aws-credentials@v2
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v3
         with:
-          # aws-access-key-id: ${{ secrets.ACCESS_KEY }}
-          # aws-secret-access-key: ${{ secrets.ACCESS_KEY_SECRET }}
-          aws-region: eu-north-1
           role-to-assume: ${{ secrets.ROLE_ARN }}
-          # aws-account: ${{ secrets.ACCOUNT }}
-      
+          aws-region: eu-north-1
+
       - name: Deploy VPC to AWS
         uses: aws-actions/aws-cloudformation-github-deploy@v1
         with:
@@ -35,10 +33,10 @@ jobs:
           template: 00_foundation_layer.yaml
           no-fail-on-empty-changeset: "1"
                 
-      - name: Deploy ECS to AWS
-        uses: aws-actions/aws-cloudformation-github-deploy@v1
-        with:
-          name: deploy-ecs
-          template: 01_template_layer.yaml
-          no-fail-on-empty-changeset: "1"
+      # - name: Deploy ECS to AWS
+      #   uses: aws-actions/aws-cloudformation-github-deploy@v1
+      #   with:
+      #     name: deploy-ecs
+      #     template: 01_template_layer.yaml
+      #     no-fail-on-empty-changeset: "1"
           
