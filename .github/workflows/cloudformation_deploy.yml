@@ -4,9 +4,7 @@ on:
   push:
     branches: [ node18.x ]
   
-  
   workflow_dispatch:
-
 
 jobs:
   deploy:
@@ -24,6 +22,7 @@ jobs:
           aws-access-key-id: ${{ secrets.ACCESS_KEY }}
           aws-secret-access-key: ${{ secrets.ACCESS_KEY_SECRET }}
           aws-region: eu-north-1
+          role-to-assume: ${{ secrets.ROLE_ARN }}
       
       - name: Deploy VPC to AWS
         uses: aws-actions/aws-cloudformation-github-deploy@v1
