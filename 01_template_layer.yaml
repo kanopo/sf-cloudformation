@@ -29,7 +29,7 @@ Parameters:
   pDNSName:
     Description: DNS name
     Type: String
-    Default: test.dmitri.sandbox.soluzionifutura.it
+    Default: dmitri.sandbox.soluzionifutura.it
 
 
 Resources:
