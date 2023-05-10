@@ -1,0 +1,41 @@
+name: "Deploy cloudformation stack to AWS"
+
+on:
+  push:
+    branches: [ node18.x ]
+  
+  
+  workflow_dispatch:
+
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: "Checkout node18 branch"
+        uses: actions/checkout@v3
+        with:
+          ref: node18.x
+      
+      - name: "Configure AWS credentials"
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.ACCESS_KEY_SECRET }}
+          aws-region: eu-north-1
+      
+      - name: Deploy VPC to AWS
+        uses: aws-actions/aws-cloudformation-github-deploy@v1
+        with:
+          name: deploy-vpc
+          template: 00_foundation_layer.yaml
+          no-fail-on-empty-changeset: "1"
+                
+      - name: Deploy ECS to AWS
+        uses: aws-actions/aws-cloudformation-github-deploy@v1
+        with:
+          name: deploy-ecs
+          template: 01_template_layer.yaml
+          no-fail-on-empty-changeset: "1"
+          
