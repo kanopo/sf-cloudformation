@@ -257,6 +257,7 @@ Resources:
     Type: AWS::ECS::TaskDefinition
     Properties:
       ExecutionRoleArn: arn:aws:iam::861507897222:role/ecsTaskExecutionRole
+      # WARN: need to created the following role inside the template
       TaskRoleArn: arn:aws:iam::861507897222:role/dmitriEcsAccessS3 
       Memory: 1024
       Cpu: 512
@@ -441,6 +442,7 @@ Resources:
 
 
       KmsKeyArn: !GetAtt KMSKey.Arn
+      # WARN: need to created the following role inside the template
       Role: arn:aws:iam::861507897222:role/dmitriLambdaRoleDeleteS3Object 
       Timeout: 60
 
